@@ -1,0 +1,1872 @@
+<!doctype html>
+<html lang="tr" data-theme="dark">
+<head>
+<meta charset="utf-8"/>
+<meta name="color-scheme" content="dark light"/>
+<meta name="theme-color" content="#050912" media="(prefers-color-scheme: dark)"/>
+<meta name="theme-color" content="#f4f6f9" media="(prefers-color-scheme: light)"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover"/>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+<meta http-equiv="Pragma" content="no-cache"/>
+<meta http-equiv="Expires" content="0"/>
+
+<style>
+.plan-btn {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  margin: 0 3px;
+  cursor:pointer;
+  font-size:.75rem;
+  opacity:0.6;
+  transition:opacity .2s;
+  position:relative;
+}
+.plan-btn:hover { opacity:1; }
+.plan-btn--set { opacity:1; }
+.plan-btn:not(.plan-btn--set)::after {
+  content:"Plan ekle";
+  position:absolute;
+  bottom:calc(100% + 5px);
+  left:50%;
+  transform:translateX(-50%);
+  background:#222;
+  color:#fff;
+  font-size:11px;
+  white-space:nowrap;
+  padding:3px 7px;
+  border-radius:4px;
+  pointer-events:none;
+  opacity:0;
+  transition:opacity .15s;
+}
+.plan-btn:not(.plan-btn--set):hover::after {
+  opacity:1;
+}
+</style>
+<title>Ders Takip Pro</title>
+<script>
+if(window.location.hostname === "127.0.0.1"){
+  const canonicalUrl = new URL(window.location.href);
+  canonicalUrl.hostname = "localhost";
+  window.location.replace(canonicalUrl.toString());
+}
+</script>
+<script type="module" src="assets/js/firebase.js?v=20260521-1"></script>
+<script src="assets/js/app-shell.js?v=20260521-1"></script>
+<script type="module" src="assets/js/auth.js?v=20260521-1"></script>
+<link rel="stylesheet" href="assets/css/tokens.css?v=20260521-1">
+<link rel="stylesheet" href="assets/css/base.css?v=20260521-1">
+<link rel="stylesheet" href="assets/css/components.css?v=20260521-1">
+<link rel="stylesheet" href="assets/css/pages/settings.css?v=20260521-1">
+</head>
+<body>
+<div class="appFrame">
+  <div class="appBorder">
+    <div class="appInner">
+      <div class="pageTitle">
+        <span class="icon">settings</span>
+        AYARLAR
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <span class="icon">manage_accounts</span>
+          Kullanıcı Ayarları
+          <span class="arrow">&#9662;</span>
+        </div>
+        <div class="accordion">
+          <div class="userCard">
+            <div id="userContent">
+              <div class="user-header">
+                <div class="avatar" id="userAvatar">K</div>
+                <div>
+                  <div class="user-name" id="userNameText">Kullanıcı</div>
+                  <div class="user-email" id="userEmailText">E-posta eklenmedi</div>
+                </div>
+              </div>
+
+              <div class="roleRow">
+                <div class="role-label">ROL</div>
+                <div class="role-chips">
+                  <button class="chip active guestRoleChip" data-role="teacher" onclick="openRoleActionSheet()">Öğretmen <span class="icon guestRoleIcon">edit</span></button>
+                </div>
+              </div>
+
+              <div class="menu">
+                <button type="button" id="changePasswordBtn" onclick="togglePasswordPanel()">Şifre Değiştir</button>
+                <button type="button" onclick="logoutUser()">Çıkış Yap</button>
+                <button type="button" class="danger" id="deleteAccountBtn" onclick="toggleDeletePanel()">Hesabı Sil</button>
+              </div>
+
+              <div id="passwordPanel" class="accountPanel" style="display:none;">
+                <div class="accountPanelTitle">Şifre Değiştir</div>
+                <form autocomplete="on" onsubmit="return false;">
+                <input type="text" name="username" autocomplete="username" hidden>
+                <div class="accountPanelFields">
+                  <input class="input" id="currentPassword" placeholder="Mevcut Şifre" type="password" autocomplete="current-password"/>
+                  <input class="input" id="newPassword" placeholder="Yeni Şifre" type="password" autocomplete="new-password"/>
+                  <input class="input" id="repeatPassword" placeholder="Yeni Şifre Tekrar" type="password" autocomplete="new-password"/>
+                </div>
+                </form>
+                <div class="accountPanelError" id="passwordError" style="display:none;"></div>
+                <div class="accountPanelSuccess" id="passwordSuccess" style="display:none;"></div>
+                <div class="accountPanelActions">
+                  <button type="button" onclick="submitPasswordChange()" style="background:var(--color-accent); color:#000; font-weight:700;">Güncelle</button>
+                  <button type="button" class="ghostBtn" onclick="closeUserPanels()">Vazgeç</button>
+                </div>
+              </div>
+
+              <div id="deletePanel" class="accountPanel deletePanel" style="display:none;">
+                <div class="accountPanelTitle dangerText">Hesabı Sil</div>
+                <div class="accountPanelText">Hesap bilgileri silinecek ve uygulama misafir moduna dönecek.</div>
+                <div class="accountPanelActions">
+                  <button type="button" class="dangerSolidBtn" onclick="confirmDeleteAccount()">Hesabı Sil</button>
+                  <button type="button" class="ghostBtn" onclick="closeUserPanels()">Vazgeç</button>
+                </div>
+              </div>
+            </div>
+
+            <div id="guestContent" style="display:none;">
+              <div id="guestSummary">
+                <div class="user-header">
+                  <div class="avatar" style="background:#666;color:#fff;">G</div>
+                  <div>
+                    <div class="user-name">Misafir Kullanıcı</div>
+                    <div class="user-email">Veriler yedeklenmiyor</div>
+                  </div>
+                </div>
+
+                <div class="roleRow">
+                  <div class="role-label">ROL</div>
+                  <div class="role-chips">
+                    <button class="chip active guestRoleChip" data-role="teacher" data-bound-role-button="true" onclick="openRoleActionSheet()">
+                      Öğretmen <span class="icon guestRoleIcon">edit</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="guestCloudCard">
+                  <p class="guestCloudDesc">Verilerini korumak için kayıt ol.</p>
+                  <button class="guestRegisterBtn" type="button" onclick="setRegisterFormVisible(true)">Kayıt Ol</button>
+                  <button class="guestGoogleBtn" type="button" onclick="loginWithGoogle()">
+                    <svg class="guestGoogleIcon" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+                      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                    </svg>
+                    Google ile devam et
+                  </button>
+                  <div class="guestLoginAction">
+                    <span class="guestLoginAction-text">Zaten hesabın var mı?</span>
+                    <a href="#" onclick="openLogin(); return false;">Giriş Yap</a>
+                  </div>
+                </div>
+              </div>
+
+              <div id="guestRegisterForm" style="display:none;">
+                <div class="registerFormTitle">Kayıt Ol</div>
+                <form autocomplete="on" onsubmit="return false;">
+                <div class="registerFormFields">
+                  <input class="input" id="registerName" placeholder="Ad Soyad" type="text" autocomplete="name"/>
+                  <input class="input" id="registerEmail" placeholder="E-posta" type="email" autocomplete="username email"/>
+                  <input class="input" id="registerPassword" placeholder="Şifre" type="password" autocomplete="new-password"/>
+                </div>
+                </form>
+                <div class="registerFormError" id="registerError" style="display:none;"></div>
+                <div class="registerFormActions">
+                  <button type="button" onclick="submitRegister()" style="background:var(--color-accent); color:#000; font-weight:700;">Kaydı Tamamla</button>
+                  <button type="button" class="ghostBtn" onclick="cancelRegister()">Vazgeç</button>
+                </div>
+              </div>
+
+              <div id="guestLoginForm" style="display:none;">
+                <div class="registerFormTitle">Giriş Yap</div>
+                <form autocomplete="on" onsubmit="return false;">
+                <div class="registerFormFields">
+                  <input class="input" id="loginEmail" placeholder="E-posta" type="email" autocomplete="username email"/>
+                  <input class="input" id="loginPassword" placeholder="Şifre" type="password" autocomplete="current-password"/>
+                </div>
+                </form>
+                <div class="registerFormError" id="loginError" style="display:none;"></div>
+                <div class="registerFormError" id="resetError" style="display:none;"></div>
+                <div class="accountPanelSuccess" id="resetSuccess" style="display:none;"></div>
+                <div style="text-align:right; margin-top:4px; margin-bottom:2px;">
+                  <a href="#" onclick="sendPasswordReset(); return false;" style="font-size:.72rem; color:var(--color-accent); text-decoration:none; opacity:.85;">Şifremi Unuttum</a>
+                </div>
+                <div class="registerFormActions">
+                  <button type="button" onclick="submitLogin()" style="background:var(--color-accent); color:#000; font-weight:700;">Giriş Yap</button>
+                  <button type="button" class="ghostBtn" onclick="cancelLogin()">Vazgeç</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <span class="icon">auto_fix_high</span>
+          Görünüm Ayarları
+          <span class="arrow">&#9662;</span>
+        </div>
+        <div class="accordion">
+          <div class="topRow secondRow">
+            <div class="miniGroup">
+              <span class="miniLbl">FONT:</span>
+              <select class="ctrl smallCtrl" id="fontSizeCtrl">
+                <option value="small">Küçük</option>
+                <option value="medium">Orta</option>
+                <option value="large">Büyük</option>
+              </select>
+            </div>
+            <div class="theme-btns-group">
+              <button class="btn-theme-toggle" id="themeToggle" type="button" data-theme-target="dark">Gece</button>
+              <button class="btn-theme-toggle" id="themeWarm" type="button" data-theme-target="warm" title="Sıcak Turuncu" aria-label="Sıcak Turuncu temaya geç">☀️</button>
+              <button class="btn-theme-toggle" id="themeGreen" type="button" data-theme-target="green" title="Sage Yeşil" aria-label="Sage Yeşil temaya geç">🌿</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <span class="icon">schedule</span>
+          Saat Ayarları
+          <span class="arrow">&#9662;</span>
+        </div>
+        <div class="accordion">
+          <div class="settings-grid">
+            <div class="field"><div class="lbl">Ders Başlangıcı</div><input class="ctrl" id="startTime" type="time"/></div>
+            <div class="field"><div class="lbl">Süre (dk)</div><input class="ctrl" id="lessonDur" type="number"/></div>
+            <div class="field"><div class="lbl">Teneffüs (dk)</div><input class="ctrl" id="breakDur" type="number"/></div>
+            <div class="field"><div class="lbl">Öğleden Önceki Ders</div><input class="ctrl" id="lunchNo" type="number"/></div>
+            <div class="field"><div class="lbl">Öğle Arası (dk)</div><input class="ctrl" id="lunchDur" type="number"/></div>
+            <div class="field">
+              <div class="lbl">Görünüm</div>
+              <select class="ctrl" id="timeMode">
+                <option value="Giris-Cikis">Giris-Cikis</option>
+                <option value="Giris">Giris</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <span class="icon">event_available</span>
+          Aktif Günler
+          <span class="arrow">&#9662;</span>
+        </div>
+        <div class="accordion">
+          <div class="days-wrap" id="daysWrap"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <span class="icon">menu_book</span>
+          Ders Adı
+          <span class="arrow">&#9662;</span>
+        </div>
+        <div class="accordion">
+          <div style="display:flex; gap:8px; margin-bottom:10px;">
+            <input class="input" id="classLessonInp" placeholder="Sınıf" style="width:90px; flex:none;"/>
+            <input class="input" id="lessonInp" placeholder="Ders Adı" style="flex:1"/>
+            <div class="color-trigger" id="mainColorTrigger" onclick="openPicker(event, 'main')"></div>
+            <button class="ctrl" onclick="addItem('lessons', 'lessonInp')" style="width:auto; padding:0 15px; background:var(--color-accent); font-weight:bold;">EKLE</button>
+          </div>
+          <div id="lessonList" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <span class="icon">grid_on</span>
+          Program Hazırla
+          <span class="arrow">&#9662;</span>
+        </div>
+        <div class="accordion">
+          <div id="weeklyGridContainer"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="cellModalOverlay" class="appModalOverlay" style="display:none;" onclick="if(event.target===this)closeCellModal()">
+  <div class="appModal">
+    <div id="cellModalTitle" style="font-size:.85rem; font-weight:900; color:var(--color-accent); margin-bottom:14px;"></div>
+    <div style="margin-bottom:12px;">
+      <div style="font-size:var(--font-xs); color:var(--text-muted); margin-bottom:5px;">DERS</div>
+      <select id="cellLessonSelect" style="width:100%; padding:8px; border-radius:8px; background:var(--bg-input); border:1px solid var(--border-normal); color:var(--text-primary); font-size:.8rem;"></select>
+    </div>
+    <div id="cellAddLessonWrap" style="display:none; margin-bottom:12px;">
+      <div style="display:flex; gap:6px; margin-bottom:6px;">
+        <input id="cellNewClassInp" class="input" placeholder="Sınıf/Şube" style="width:90px; flex:none; font-size:.8rem;"/>
+        <input id="cellNewLessonInp" class="input" placeholder="Ders Adı" style="flex:1; font-size:.8rem;"/>
+      </div>
+      <div style="display:flex; gap:6px;">
+        <button onclick="confirmAddLessonFromCell()" style="flex:1; padding:6px 12px; background:var(--color-accent); border:none; border-radius:8px; color:#000; font-weight:700; font-size:.75rem; cursor:pointer;">Ekle</button>
+        <button onclick="cancelAddLessonFromCell()" style="padding:6px 10px; background:transparent; border:1px solid var(--border-strong); border-radius:8px; color:var(--text-muted); font-size:.75rem; cursor:pointer;">✕</button>
+      </div>
+    </div>
+    <div style="margin-bottom:14px;">
+      <div style="font-size:var(--font-xs); color:var(--text-muted); margin-bottom:6px;">YAZI RENGİ</div>
+      <div id="cellColorSwatches" style="display:flex; gap:6px; flex-wrap:wrap;"></div>
+    </div>
+    <div style="margin-bottom:16px;">
+      <div style="font-size:var(--font-xs); color:var(--text-muted); margin-bottom:6px;">YILLIK PLAN</div>
+      <button id="cellPlanBtn" onclick="openCellPlanModal()" style="width:100%; padding:9px; border-radius:8px; background:transparent; border:1px solid var(--border-strong); color:var(--text-secondary); font-size:.75rem; cursor:pointer; text-align:left;">Plan Seç</button>
+    </div>
+    <div style="display:flex; gap:8px;">
+      <button onclick="closeCellModal()" style="flex:1; padding:10px; border-radius:8px; background:transparent; border:1px solid var(--border-strong); color:var(--text-muted); font-size:.75rem; cursor:pointer;">İptal</button>
+      <button id="cellDeleteBtn" onclick="deleteCellEntry()" style="display:none; padding:10px 14px; border-radius:8px; background:transparent; border:1px solid #e74c3c; color:#e74c3c; font-size:.75rem; cursor:pointer;">Sil</button>
+      <button onclick="saveCellModal()" style="flex:1; padding:10px; border-radius:8px; background:var(--color-accent); border:none; color:#000; font-weight:900; font-size:.75rem; cursor:pointer;">Kaydet</button>
+    </div>
+  </div>
+</div>
+
+<div class="pop-color" id="colorPop"></div>
+<input id="hiddenPicker" type="color" class="hiddenColorInput"/>
+<input id="cellColorPicker" type="color" class="hiddenColorInput"/>
+
+<div id="roleActionSheet" class="appModalOverlay" style="display:none;" onclick="if(event.target===this)closeRoleActionSheet()">
+  <div class="appModal">
+    <div class="rasTitle">Rol Ayarları</div>
+    <button class="rasResetBtn" type="button" onclick="roleActionSheetConfirm()">Rol Seçimini Sıfırla</button>
+    <button class="rasCancelBtn" type="button" onclick="closeRoleActionSheet()">Vazgeç</button>
+  </div>
+</div>
+
+<!-- Yıllık Plan Modal -->
+<div id="planModalOverlay" class="appModalOverlay" style="display:none;" onclick="if(event.target===this)closePlanModal()">
+  <div class="appModal">
+    <div style="font-size:.85rem; font-weight:900; color:var(--color-accent); margin-bottom:14px;" id="planModalTitle">Plan Seç</div>
+
+    <div style="margin-bottom:12px;">
+      <div style="font-size:var(--font-xs); color:var(--text-muted); margin-bottom:5px;">SINIF SEVİYESİ</div>
+      <select id="planClassSelect" onchange="loadPlanList()" style="width:100%; padding:8px; border-radius:8px; background:var(--bg-input); border:1px solid var(--border-normal); color:var(--text-primary); font-size:.8rem;">
+        <option value="">Seçin...</option>
+        <option value="1">1. Sınıf</option><option value="2">2. Sınıf</option>
+        <option value="3">3. Sınıf</option><option value="4">4. Sınıf</option>
+        <option value="5">5. Sınıf</option><option value="6">6. Sınıf</option>
+        <option value="7">7. Sınıf</option><option value="8">8. Sınıf</option>
+        <option value="9">9. Sınıf</option><option value="10">10. Sınıf</option>
+        <option value="11">11. Sınıf</option><option value="12">12. Sınıf</option>
+      </select>
+    </div>
+
+    <div style="margin-bottom:16px;">
+      <div style="font-size:var(--font-xs); color:var(--text-muted); margin-bottom:5px;">YILLIK PLAN</div>
+      <div id="planList" style="max-height:180px; overflow-y:auto; border:1px solid var(--border-normal); border-radius:8px; padding:6px;">
+        <div style="color:var(--text-muted); font-size:var(--font-xs); padding:8px;">Önce sınıf seviyesi seçin</div>
+      </div>
+    </div>
+
+    <div id="planSelectedInfo" style="display:none; background:var(--color-accent-soft); border:1px solid var(--color-accent); border-radius:8px; padding:8px; margin-bottom:12px; font-size:.72rem; color:var(--color-accent);"></div>
+
+    <div style="display:flex; gap:8px;">
+      <button onclick="closePlanModal()" style="flex:1; padding:10px; border-radius:8px; background:transparent; border:1px solid var(--border-strong); color:var(--text-muted); font-size:.75rem; cursor:pointer;">İptal</button>
+      <button id="planSaveBtn" onclick="savePlanSelection()" style="flex:1; padding:10px; border-radius:8px; background:var(--color-accent); border:none; color:#000; font-weight:900; font-size:.75rem; cursor:pointer;" disabled>Kaydet</button>
+    </div>
+  </div>
+</div>
+
+<div class="nav">
+  <div class="navItem" data-nav="index">
+    <span class="icon">today</span>
+    GÜNLÜK
+  </div>
+  <div class="navItem" data-nav="weekly">
+    <span class="icon">view_week</span>
+    HAFTALIK
+  </div>
+  <div class="navItem" data-nav="notes">
+    <span class="icon">edit_note</span>
+    NOTLAR
+  </div>
+  <div class="navItem" data-nav="settings">
+    <span class="icon">settings</span>
+    AYARLAR
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = "ayarlar";
+const dayNames = AppShell.DAY_NAMES;
+
+const appData = AppShell.safeJsonParse(localStorage.getItem(STORAGE_KEY), null) || {
+  settings: {
+    start: "08:15",
+    duration: 40,
+    break: 10,
+    lunch: 45,
+    lunchNo: 5,
+    timeMode: "Giris-Cikis",
+    role: "teacher",
+    studentClass: "",
+    userType: "guest",
+    name: "",
+    email: "",
+    password: "",
+    firebaseUid: "",
+    authProvider: ""
+  },
+  activeDays: [0, 1, 2, 3, 4],
+  classes: [],
+  lessons: [],
+  schedule: {},
+  lastColor: "#ff7a00"
+};
+
+
+// Eksik alanları güvenle doldur (eski localStorage verisiyle uyumluluk)
+if(!appData.settings)                                    appData.settings  = {};
+if(!Array.isArray(appData.lessons))                      appData.lessons   = [];
+if(!Array.isArray(appData.classes))                      appData.classes   = [];
+if(!Array.isArray(appData.activeDays))                   appData.activeDays= [0,1,2,3,4];
+if(!appData.schedule || typeof appData.schedule !== "object") appData.schedule = {};
+if(!appData.lastColor)                                   appData.lastColor = "#ff7a00";
+if(!appData.weeklyGrid || typeof appData.weeklyGrid !== "object") appData.weeklyGrid = {};
+if(!appData.weeklySlots || appData.weeklySlots < 1) appData.weeklySlots = 8;
+// Bu sayfa her zaman teacher rolünde çalışır — dışarıdan değiştirilemez
+appData.settings.role = "teacher";
+
+const trCollator = new Intl.Collator("tr", {
+  numeric: true,
+  sensitivity: "base"
+});
+
+const colors = ["#ff4444", "#ff7a00", "#ffbb00", "#44ff44", "#00ccff", "#4444ff", "#cc44ff", "#ffffff"];
+const pop = document.getElementById("colorPop");
+const hiddenPicker = document.getElementById("hiddenPicker");
+let currentTarget = null;
+
+function compareNatural(left, right){
+  return trCollator.compare(String(left || "").trim(), String(right || "").trim());
+}
+
+function getSortedClasses(){
+  return appData.classes
+    .map((entry, index) => ({ entry, index }))
+    .sort((left, right) => compareNatural(left.entry, right.entry));
+}
+
+function getSortedLessons(){
+  return appData.lessons
+    .map((entry, index) => ({ entry, index }))
+    .sort((left, right) => compareNatural(left.entry?.name, right.entry?.name));
+}
+
+function isGuest(){
+  return AppShell.isGuestUser(appData);
+}
+
+function getTodayDayName(){
+  return AppShell.getTodayDayName();
+}
+
+function getSelectedDay(){
+  return document.getElementById("daySelect").value;
+}
+
+function getScheduleRows(day){
+  return AppShell.getScheduleRowsForDay(appData, day);
+}
+
+function isEditableDay(day){
+  return AppShell.isGuestEditableDay(appData, day);
+}
+
+function ensureDaySchedule(day){
+  if(!appData.schedule[day]) appData.schedule[day] = [];
+  return appData.schedule[day];
+}
+
+function saveAppData(){
+  AppShell.saveAppData(appData);
+  AppShell.syncAuthState();
+}
+
+function saveAuthIdentityOnly(){
+  const stored = AppShell.loadAppData() || {};
+  stored.settings = Object.assign(stored.settings || {}, appData.settings);
+  localStorage.setItem('ayarlar', JSON.stringify(stored));
+  AppShell.syncAuthState();
+}
+
+function syncAppData(nextData){
+  const resolved = nextData || {};
+  Object.keys(appData).forEach((key) => {
+    delete appData[key];
+  });
+  Object.assign(appData, resolved);
+}
+
+function showGuestPrompt(message){
+  AppShell.showRegisterPrompt(message || "Bu özelliğin tamamını kullanmak için kayıt olun.");
+  return false;
+}
+
+function getUserInitials(name){
+  const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+  if(!parts.length) return "AY";
+  if(parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function syncUserProfile(){
+  const authUser = AppAuth?.user || null;
+  const userName = appData.settings.name || authUser?.name || "Kullanıcı";
+  const userEmail = appData.settings.email || authUser?.email || "E-posta eklenmedi";
+  const avatar = document.getElementById("userAvatar");
+  const nameText = document.getElementById("userNameText");
+  const emailText = document.getElementById("userEmailText");
+
+  if(avatar) avatar.textContent = getUserInitials(userName);
+  if(nameText) nameText.textContent = userName;
+  if(emailText) emailText.textContent = userEmail;
+}
+
+function setRegisterFormVisible(visible){
+  const summary = document.getElementById("guestSummary");
+  const form = document.getElementById("guestRegisterForm");
+  const loginForm = document.getElementById("guestLoginForm");
+  const error = document.getElementById("registerError");
+
+  if(summary) summary.style.display = visible ? "none" : "block";
+  if(form) form.style.display = visible ? "block" : "none";
+  if(loginForm) loginForm.style.display = "none";
+  if(error){
+    error.style.display = "none";
+    error.textContent = "";
+  }
+}
+
+function setLoginFormVisible(visible){
+  const summary = document.getElementById("guestSummary");
+  const registerForm = document.getElementById("guestRegisterForm");
+  const loginForm = document.getElementById("guestLoginForm");
+  const error = document.getElementById("loginError");
+  const resetError = document.getElementById("resetError");
+  const resetSuccess = document.getElementById("resetSuccess");
+
+  if(summary) summary.style.display = visible ? "none" : "block";
+  if(registerForm) registerForm.style.display = "none";
+  if(loginForm) loginForm.style.display = visible ? "block" : "none";
+  if(error){ error.style.display = "none"; error.textContent = ""; }
+  if(resetError){ resetError.style.display = "none"; resetError.textContent = ""; }
+  if(resetSuccess){ resetSuccess.style.display = "none"; resetSuccess.textContent = ""; }
+}
+
+function syncAuthActionState(){
+  const changePasswordBtn = document.getElementById("changePasswordBtn");
+  const deleteAccountBtn = document.getElementById("deleteAccountBtn");
+  const shouldHideAccountActions = !isGuest() && appData.settings.authProvider === "google";
+
+  if(changePasswordBtn) changePasswordBtn.style.display = shouldHideAccountActions ? "none" : "";
+  if(deleteAccountBtn) deleteAccountBtn.style.display = shouldHideAccountActions ? "none" : "";
+
+  if(shouldHideAccountActions){
+    closeUserPanels();
+  }
+}
+
+function validateEmail(value){
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
+}
+
+function showRegisterError(message){
+  const error = document.getElementById("registerError");
+  if(!error) return;
+  error.textContent = message;
+  error.style.display = "block";
+}
+
+function showLoginError(message){
+  const error = document.getElementById("loginError");
+  if(!error) return;
+  error.textContent = message;
+  error.style.display = "block";
+}
+
+function showUserActionError(message){
+  const text = String(message || "Bir hata oluştu");
+  if(document.getElementById("passwordPanel")?.style.display === "block"){
+    showPasswordError(text);
+    return;
+  }
+  alert(text);
+}
+
+function clearPasswordFeedback(){
+  const error = document.getElementById("passwordError");
+  const success = document.getElementById("passwordSuccess");
+  if(error){
+    error.textContent = "";
+    error.style.display = "none";
+  }
+  if(success){
+    success.textContent = "";
+    success.style.display = "none";
+  }
+}
+
+function closeUserPanels(){
+  const passwordPanel = document.getElementById("passwordPanel");
+  const deletePanel = document.getElementById("deletePanel");
+
+  if(passwordPanel) passwordPanel.style.display = "none";
+  if(deletePanel) deletePanel.style.display = "none";
+
+  clearPasswordFeedback();
+
+  ["currentPassword", "newPassword", "repeatPassword"].forEach((id) => {
+    const field = document.getElementById(id);
+    if(field) field.value = "";
+  });
+}
+
+function togglePasswordPanel(){
+  const passwordPanel = document.getElementById("passwordPanel");
+  if(!passwordPanel) return;
+
+  const isOpen = passwordPanel.style.display === "block";
+  closeUserPanels();
+  if(!isOpen){
+    passwordPanel.style.display = "block";
+  }
+}
+
+function toggleDeletePanel(){
+  const deletePanel = document.getElementById("deletePanel");
+  if(!deletePanel) return;
+
+  const isOpen = deletePanel.style.display === "block";
+  closeUserPanels();
+  if(!isOpen){
+    deletePanel.style.display = "block";
+  }
+}
+
+function showPasswordError(message){
+  const error = document.getElementById("passwordError");
+  const success = document.getElementById("passwordSuccess");
+  if(success){
+    success.textContent = "";
+    success.style.display = "none";
+  }
+  if(error){
+    error.textContent = message;
+    error.style.display = "block";
+  }
+}
+
+function showPasswordSuccess(message){
+  const error = document.getElementById("passwordError");
+  const success = document.getElementById("passwordSuccess");
+  if(error){
+    error.textContent = "";
+    error.style.display = "none";
+  }
+  if(success){
+    success.textContent = message;
+    success.style.display = "block";
+  }
+}
+
+function resetGuestCardState(){
+  setRegisterFormVisible(false);
+  setLoginFormVisible(false);
+  const nameInput = document.getElementById("registerName");
+  const emailInput = document.getElementById("registerEmail");
+  const passwordInput = document.getElementById("registerPassword");
+  const loginEmailInput = document.getElementById("loginEmail");
+  const loginPasswordInput = document.getElementById("loginPassword");
+  if(nameInput) nameInput.value = "";
+  if(emailInput) emailInput.value = "";
+  if(passwordInput) passwordInput.value = "";
+  if(loginEmailInput) loginEmailInput.value = "";
+  if(loginPasswordInput) loginPasswordInput.value = "";
+}
+
+async function submitPasswordChange(){
+  const currentPassword = document.getElementById("currentPassword")?.value || "";
+  const newPassword = document.getElementById("newPassword")?.value || "";
+  const repeatPassword = document.getElementById("repeatPassword")?.value || "";
+
+  if(!currentPassword || !newPassword || !repeatPassword){
+    showPasswordError("Bir hata oluştu");
+    return;
+  }
+
+  if(newPassword !== repeatPassword){
+    showPasswordError("Şifreler uyuşmuyor");
+    return;
+  }
+
+  try{
+    await AppAuth.restoreAuthSession();
+    await AppAuth.changeCurrentUserPassword(currentPassword, newPassword);
+    showPasswordSuccess("Şifre güncellendi");
+    setTimeout(() => {
+      closeUserPanels();
+    }, 900);
+  }catch(error){
+    showPasswordError(error?.userMessage || "Bir hata oluştu");
+  }
+}
+
+async function logoutUser(){
+  closeUserPanels();
+
+  try{
+    await AppAuth.restoreAuthSession();
+    await AppAuth.logoutCurrentUser();
+    AppAuth.user = null;
+  }catch(error){
+    showUserActionError(error?.userMessage || error?.message || "Çıkış yapılırken hata oluştu.");
+    return;
+  }
+
+  const nextData = AppAuth.applyGuestUser(appData, { persist: false, clearIdentity: true });
+  syncAppData(nextData);
+  saveAppData();
+  resetGuestCardState();
+  renderDays();
+  renderUserCard();
+  renderSettingsUI();
+}
+
+async function confirmDeleteAccount(){
+  const confirmDelete = await AppShell.customConfirm("Hesabınızı silmek istediğinize emin misiniz? Bu işlem geri alınamaz.");
+  if(!confirmDelete) return;
+
+  // Google kullanıcıları için şifre sorma — popup ile doğrulama yapılır.
+  const isGoogleUser = appData.settings.authProvider === "google";
+  let password = null;
+
+  if(!isGoogleUser){
+    password = prompt("Devam etmek için mevcut şifrenizi girin:");
+    if(!password) return;
+  }
+
+  try{
+    await AppAuth.restoreAuthSession();
+    await AppAuth.deleteCurrentUser(password);
+    AppAuth.user = null;
+  }catch(error){
+    showUserActionError(error?.userMessage || "Bir hata oluştu");
+    return;
+  }
+
+  const nextData = AppAuth.applyGuestUser(appData, { persist: false, clearIdentity: true });
+  syncAppData(nextData);
+  saveAppData();
+  resetGuestCardState();
+  renderDays();
+  renderUserCard();
+  renderSettingsUI();
+}
+
+function renderDays(){
+  const wrap = document.getElementById("daysWrap");
+  const sourceIndexes = appData.activeDays;
+  const dayShortNames = {
+    Pazartesi: "Pzt",
+    Salı: "Sal",
+    Çarşamba: "Çar",
+    Perşembe: "Per",
+    Cuma: "Cum",
+    Cumartesi: "Cmt",
+    Pazar: "Pzr"
+  };
+
+  wrap.innerHTML = dayNames.map((day, index) =>
+    '<label class="day-item">' +
+    '<input type="checkbox" ' +
+    (sourceIndexes.includes(index) ? "checked " : "") +
+    'onchange="toggleDay(' + index + ')"' +
+    ">" +
+    "<span>" + (dayShortNames[day] || day.substring(0, 3)) + "</span></label>"
+  ).join("");
+
+  const select = document.getElementById("daySelect");
+  if(select){
+    const oldValue = select.value;
+    select.innerHTML = sourceIndexes.map((index) =>
+      '<option value="' + dayNames[index] + '">' + dayNames[index] + "</option>"
+    ).join("");
+    if(sourceIndexes.map((index) => dayNames[index]).includes(oldValue)){
+      select.value = oldValue;
+    }else{
+      select.value = isGuest() ? getTodayDayName() : (dayNames[sourceIndexes[0]] || "");
+    }
+  }
+}
+
+function toggleDay(index){
+  if(appData.activeDays.includes(index)){
+    appData.activeDays = appData.activeDays.filter((day) => day !== index);
+  }else{
+    appData.activeDays.push(index);
+  }
+
+  appData.activeDays.sort();
+  saveAppData();
+  renderDays();
+  renderSettingsUI();
+}
+
+function openPicker(event, target){
+  event.stopPropagation();
+  currentTarget = target;
+  pop.innerHTML = "";
+
+  colors.forEach((color) => {
+    const swatch = document.createElement("div");
+    swatch.className = "sw";
+    swatch.style.background = color;
+    swatch.onclick = () => applyColor(color);
+    pop.appendChild(swatch);
+  });
+
+  const multi = document.createElement("label");
+  multi.className = "sw multi";
+  multi.setAttribute("for", "hiddenPicker");
+  multi.onclick = e => e.stopPropagation();
+  pop.appendChild(multi);
+
+  pop.style.display = "grid";
+  const rect = event.target.getBoundingClientRect();
+  pop.style.left = Math.max(10, rect.left - 60) + "px";
+  pop.style.top = rect.bottom + 10 + "px";
+}
+
+function applyColor(color){
+  if(currentTarget === "main"){
+    appData.lastColor = color;
+    document.getElementById("mainColorTrigger").style.background = color;
+  }else{
+    appData.lessons[currentTarget].color = color;
+    renderSettingsUI();
+  }
+
+  saveAppData();
+  pop.style.display = "none";
+}
+
+hiddenPicker.oninput = (event) => applyColor(event.target.value);
+document.onclick = () => {
+  pop.style.display = "none";
+};
+
+// ── Yıllık Plan Modal ──────────────────────────────────────
+let planModalLessonIndex = null;
+let planSelectedPath = null;
+
+function gradeFromLessonName(name){
+  const match = (name || "").match(/^(\d+)/);
+  return match ? match[1] : "";
+}
+
+function openPlanModal(lessonIndex, event){
+  event.stopPropagation();
+  planModalLessonIndex = lessonIndex;
+  planSelectedPath = null;
+
+  const lesson = appData.lessons[lessonIndex];
+  document.getElementById("planModalTitle").textContent = (lesson?.name || "Ders") + " — Plan Seç";
+
+  const existingPath = lesson?.planPath || "";
+  const classSelect = document.getElementById("planClassSelect");
+  if(existingPath){
+    const parts = existingPath.split("/");
+    classSelect.value = parts[0] || "";
+    planSelectedPath = existingPath;
+  } else {
+    classSelect.value = gradeFromLessonName(lesson?.name || "");
+  }
+
+  document.getElementById("planList").innerHTML = '<div style="color:var(--text-muted); font-size:var(--font-xs); padding:8px;">Önce sınıf seviyesi seçin</div>';
+  document.getElementById("planSelectedInfo").style.display = "none";
+  document.getElementById("planSaveBtn").disabled = true;
+
+  const overlay = document.getElementById("planModalOverlay");
+  overlay.style.display = "flex";
+  document.body.classList.add("modal-open");
+
+  if(classSelect.value) loadPlanList();
+}
+
+function closePlanModal(){
+  document.getElementById("planModalOverlay").style.display = "none";
+  _syncModalOpen();
+  planModalLessonIndex = null;
+  planSelectedPath = null;
+}
+
+async function loadPlanList(){
+  if(window.AppAuth?.ready) await window.AppAuth.ready;
+  const grade = document.getElementById("planClassSelect").value;
+  const listEl = document.getElementById("planList");
+
+  if(!grade){
+    listEl.innerHTML = '<div style="color:var(--text-muted); font-size:var(--font-xs); padding:8px;">Önce sınıf seviyesi seçin</div>';
+    return;
+  }
+
+  listEl.innerHTML = '<div style="color:var(--text-muted); font-size:var(--font-xs); padding:8px;">Yükleniyor...</div>';
+
+  try{
+    const { getDatabase, ref, get } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js");
+    const { app } = await import("./assets/js/firebase.js");
+    const db = getDatabase(app);
+    // plan-index sadece {slug: "Ders Adı"} içerir, çok küçük veri
+    const snapshot = await get(ref(db, "plan-index/" + grade));
+
+    if(!snapshot.exists()){
+      listEl.innerHTML = '<div style="color:var(--text-muted); font-size:var(--font-xs); padding:8px;">Bu sınıf için plan bulunamadı</div>';
+      return;
+    }
+
+    const plans = snapshot.val(); // { "fikih": "Fıkıh", "matematik": "Matematik" }
+    const lesson = appData.lessons[planModalLessonIndex];
+    const currentPath = lesson?.planPath || "";
+
+    const sortedEntries = Object.entries(plans).sort((a, b) =>
+      (a[1] || a[0]).localeCompare(b[1] || b[0], "tr")
+    );
+
+    listEl.innerHTML = sortedEntries.map(([key, adValue]) => {
+      const path = grade + "/" + key;
+      const isSelected = currentPath === path || planSelectedPath === path;
+      const displayName = adValue || key.replace(/-/g, " ");
+      return '<div class="plan-list-item' + (isSelected ? " selected" : "") + '" ' +
+        'onclick="selectPlan(\'' + path + '\')" ' +
+        'style="padding:10px 8px; border-radius:6px; cursor:pointer; font-size:.78rem; border-bottom:1px solid var(--border-thin); ' +
+        (isSelected ? "background:var(--color-accent-soft); color:var(--color-accent);" : "color:var(--text-primary);") + '">' +
+        (isSelected ? "✓ " : "") + displayName +
+        '</div>';
+    }).join("");
+
+  }catch(err){
+    listEl.innerHTML = '<div style="color:var(--color-danger); font-size:var(--font-xs); padding:8px;">Hata: ' + (err.message || "Bağlantı hatası") + '</div>';
+  }
+}
+
+function selectPlan(path){
+  planSelectedPath = path;
+
+  document.querySelectorAll(".plan-list-item").forEach((el) => {
+    const onclick = el.getAttribute("onclick") || "";
+    const isThis = onclick.includes("'" + path + "'");
+    el.style.background = isThis ? "var(--color-accent-soft)" : "";
+    el.style.color = isThis ? "var(--color-accent)" : "var(--text-primary)";
+  });
+
+  const infoEl = document.getElementById("planSelectedInfo");
+  infoEl.textContent = "Seçilen: " + path;
+  infoEl.style.display = "block";
+  document.getElementById("planSaveBtn").disabled = false;
+}
+
+function savePlanSelection(){
+  if(cellPlanContext){
+    cellModalPlanPath = planSelectedPath;
+    cellPlanContext = false;
+    const btn = document.getElementById("cellPlanBtn");
+    if(btn) btn.textContent = planSelectedPath ? ("✓ "+planSelectedPath) : "Plan Seç";
+    closePlanModal();
+    return;
+  }
+  if(planModalLessonIndex === null || !planSelectedPath) return;
+  appData.lessons[planModalLessonIndex].planPath = planSelectedPath;
+  saveAppData();
+  renderSettingsUI();
+  closePlanModal();
+}
+// ──────────────────────────────────────────────────────────
+
+// ── Program Hazırla (Haftalık Grid) ───────────────────────
+const DAY_SHORT_NAMES = { Pazartesi:"Pzt", Salı:"Sal", Çarşamba:"Çar", Perşembe:"Per", Cuma:"Cum", Cumartesi:"Cmt", Pazar:"Pzr" };
+const WEEKLY_SLOTS = 8;
+let cellModalDay = null;
+let cellModalSlot = null;
+let cellModalColor = "#ff7a00";
+let cellModalPlanPath = null;
+let cellPlanContext = false;
+
+function escHtml(s){ return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+
+function ensureWeeklyGrid(){ if(!appData.weeklyGrid||typeof appData.weeklyGrid!=="object") appData.weeklyGrid={}; }
+
+function getWeeklyCell(day, slot){ return ((appData.weeklyGrid||{})[day]||{})[slot]||null; }
+
+function renderWeeklyGrid(){
+  const container = document.getElementById("weeklyGridContainer");
+  if(!container) return;
+  ensureWeeklyGrid();
+  const activeDays = appData.activeDays.map(i => dayNames[i]).filter(Boolean);
+  if(!activeDays.length){
+    container.innerHTML = '<div style="color:var(--text-muted);font-size:.75rem;padding:8px;">Aktif gün seçilmedi.</div>';
+    return;
+  }
+  const slotCount = appData.weeklySlots || 8;
+  const slots = generateTimeSlots(slotCount);
+  const lunchNo = parseInt(appData.settings.lunchNo, 10) || 5;
+  let html = '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;"><table style="border-collapse:collapse;width:100%;font-size:.65rem;">';
+  html += '<thead><tr><th style="padding:4px 2px;color:var(--text-muted);font-weight:700;text-align:center;min-width:26px;">#</th>';
+  activeDays.forEach(day => {
+    html += '<th style="padding:4px 3px;color:var(--color-accent);font-weight:900;text-align:center;min-width:52px;">'+(DAY_SHORT_NAMES[day]||day.slice(0,3))+'</th>';
+  });
+  html += '</tr></thead><tbody>';
+  for(let slot=1; slot<=slotCount; slot++){
+    const timeStr = slots[slot-1]||'';
+    const tp = timeStr.includes('-') ? timeStr.split('-') : [timeStr,''];
+    const timeHtml = tp[1] ? tp[0]+'<br>'+tp[1] : tp[0];
+    html += '<tr><td style="padding:3px 2px;text-align:center;font-size:.55rem;line-height:1.4;min-width:26px;"><span style="color:var(--color-accent);font-weight:900;">'+slot+'</span><br><span style="color:var(--text-muted);">'+timeHtml+'</span></td>';
+    activeDays.forEach(day => {
+      const cell = getWeeklyCell(day, slot);
+      if(cell && cell.lesson){
+        const parts = cell.lesson.split(' - ');
+        const hasClass = parts.length >= 2;
+        const cls = hasClass ? parts[0] : '';
+        const lsn = hasClass ? parts.slice(1).join(' - ') : parts[0];
+        const accent = cell.color || 'var(--color-accent)';
+        html += '<td onclick="openCellModal(\''+escHtml(day)+'\','+slot+')" style="padding:3px;cursor:pointer;">' +
+          '<div style="background:var(--color-bg-surface);border:1px solid var(--border-normal);border-radius:7px;padding:4px 3px;min-height:38px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:1px;">' +
+          (hasClass ? '<span style="font-size:.5rem;color:var(--text-secondary);font-weight:500;line-height:1.2;letter-spacing:.01em;">'+escHtml(cls)+'</span>' : '') +
+          '<span style="font-size:.62rem;font-weight:900;color:'+accent+';line-height:1.2;letter-spacing:.03em;word-break:break-word;">'+escHtml(lsn.toUpperCase())+'</span>' +
+          '</div></td>';
+      }else{
+        html += '<td onclick="openCellModal(\''+escHtml(day)+'\','+slot+')" style="padding:3px;cursor:pointer;">' +
+          '<div style="background:var(--color-bg-surface);border:1px solid var(--border-normal);border-radius:7px;min-height:38px;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:.8rem;">+</div></td>';
+      }
+    });
+    html += '</tr>';
+    if(slot === lunchNo){
+      html += '<tr><td></td><td colspan="'+activeDays.length+'" style="padding:4px 2px;">' +
+        '<div style="background:rgba(var(--color-accent-rgb),.05);border:1px solid var(--color-accent);border-radius:6px;text-align:center;font-size:.58rem;font-weight:700;color:var(--color-accent);padding:5px;letter-spacing:.08em;">ÖĞLE ARASI</div>' +
+        '</td></tr>';
+    }
+  }
+  html += '</tbody></table></div>';
+  html += '<div style="display:flex;gap:8px;margin-top:10px;">' +
+    '<button onclick="removeWeeklyRow()" style="flex:1;padding:9px;border-radius:8px;background:transparent;border:1px solid var(--border-strong);color:var(--text-muted);font-size:.75rem;font-weight:700;cursor:pointer;">− Satır Sil</button>' +
+    '<button onclick="addWeeklyRow()" style="flex:1;padding:9px;border-radius:8px;background:var(--color-accent);border:none;color:#000;font-size:.75rem;font-weight:900;cursor:pointer;">+ Satır Ekle</button>' +
+    '</div>';
+  container.innerHTML = html;
+}
+
+function openCellModal(day, slot){
+  cellModalDay = day;
+  cellModalSlot = slot;
+  const cell = getWeeklyCell(day, slot);
+  cellModalColor = cell ? (cell.color||appData.lastColor) : appData.lastColor;
+  cellModalPlanPath = cell
+    ? (cell.planPath || appData.lessons.find(l => l.name === cell.lesson)?.planPath || null)
+    : null;
+  document.getElementById("cellModalTitle").textContent = slot+". Ders · "+(DAY_SHORT_NAMES[day]||day);
+  buildCellLessonSelect(cell ? cell.lesson : "");
+  buildCellColorSwatches();
+  const planBtn = document.getElementById("cellPlanBtn");
+  if(planBtn) planBtn.textContent = cellModalPlanPath ? ("✓ "+cellModalPlanPath) : "Plan Seç";
+  document.getElementById("cellDeleteBtn").style.display = cell ? "inline-block" : "none";
+  document.getElementById("cellAddLessonWrap").style.display = "none";
+  document.getElementById("cellModalOverlay").style.display = "flex";
+  document.body.classList.add("modal-open");
+}
+
+function buildCellLessonSelect(current){
+  const select = document.getElementById("cellLessonSelect");
+  const sorted = getSortedLessons();
+  let html = '<option value="">— Ders Seç —</option>';
+  sorted.forEach(({entry}) => {
+    html += '<option value="'+escHtml(entry.name)+'"'+(current===entry.name?' selected':'')+'>'+escHtml(entry.name)+'</option>';
+  });
+  html += '<option value="__add__">+ Ekle</option>';
+  select.innerHTML = html;
+  select.onchange = function(){
+    if(this.value==="__add__"){
+      this.value = current||"";
+      document.getElementById("cellAddLessonWrap").style.display = "block";
+      requestAnimationFrame(() => document.getElementById("cellNewClassInp").focus());
+      return;
+    }
+    const lessonObj = appData.lessons.find(l => l.name === this.value);
+    cellModalPlanPath = lessonObj?.planPath || null;
+    const planBtn = document.getElementById("cellPlanBtn");
+    if(planBtn) planBtn.textContent = cellModalPlanPath ? ("✓ "+cellModalPlanPath) : "Plan Seç";
+  };
+}
+
+function buildCellColorSwatches(){
+  const wrap = document.getElementById("cellColorSwatches");
+  wrap.innerHTML = "";
+  colors.forEach(color => {
+    const sw = document.createElement("div");
+    sw.style.cssText = "width:26px;height:26px;border-radius:50%;cursor:pointer;background:"+color+";border:2.5px solid "+(color===cellModalColor?"#fff":"transparent")+";flex-shrink:0;";
+    sw.onclick = e => { e.stopPropagation(); cellModalColor=color; buildCellColorSwatches(); };
+    wrap.appendChild(sw);
+  });
+  const multi = document.createElement("label");
+  multi.setAttribute("for", "cellColorPicker");
+  multi.style.cssText = "width:26px;height:26px;border-radius:50%;cursor:pointer;background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red);flex-shrink:0;";
+  multi.onclick = e => e.stopPropagation();
+  const cellColorPicker = document.getElementById("cellColorPicker");
+  cellColorPicker.value = cellModalColor;
+  cellColorPicker.oninput = () => { cellModalColor = cellColorPicker.value; buildCellColorSwatches(); };
+  wrap.appendChild(multi);
+}
+
+function openCellPlanModal(){
+  cellPlanContext = true;
+  const lessonVal = document.getElementById("cellLessonSelect")?.value || "";
+  planModalLessonIndex = null;
+  planSelectedPath = cellModalPlanPath;
+  document.getElementById("planModalTitle").textContent = (lessonVal||"Ders") + " — Plan Seç";
+  const classSelect = document.getElementById("planClassSelect");
+  if(cellModalPlanPath){
+    classSelect.value = cellModalPlanPath.split("/")[0] || "";
+    if(classSelect.value) loadPlanList();
+  }else{
+    classSelect.value = gradeFromLessonName(lessonVal);
+    if(classSelect.value) loadPlanList();
+    else document.getElementById("planList").innerHTML = '<div style="color:var(--text-muted); font-size:var(--font-xs); padding:8px;">Önce sınıf seviyesi seçin</div>';
+  }
+  const infoEl = document.getElementById("planSelectedInfo");
+  if(cellModalPlanPath){ infoEl.textContent="Seçilen: "+cellModalPlanPath; infoEl.style.display="block"; }
+  else infoEl.style.display = "none";
+  document.getElementById("planSaveBtn").disabled = !cellModalPlanPath;
+  document.getElementById("planModalOverlay").style.display = "flex";
+  document.body.classList.add("modal-open");
+}
+
+function closeCellModal(){
+  document.getElementById("cellModalOverlay").style.display = "none";
+  _syncModalOpen();
+  cellModalDay = null;
+  cellModalSlot = null;
+}
+
+function saveCellModal(){
+  if(!cellModalDay||!cellModalSlot) return;
+  const lesson = document.getElementById("cellLessonSelect").value;
+  if(!lesson||lesson==="__add__") return;
+  ensureWeeklyGrid();
+  if(!appData.weeklyGrid[cellModalDay]) appData.weeklyGrid[cellModalDay] = {};
+  const entry = { lesson, color: cellModalColor };
+  if(cellModalPlanPath) entry.planPath = cellModalPlanPath;
+  appData.weeklyGrid[cellModalDay][cellModalSlot] = entry;
+  if(cellModalPlanPath){
+    const lessonObj = appData.lessons.find(l => l.name === lesson);
+    if(lessonObj) lessonObj.planPath = cellModalPlanPath;
+  }
+  saveAppData();
+  renderSettingsUI();
+  closeCellModal();
+}
+
+function deleteCellEntry(){
+  if(!cellModalDay||!cellModalSlot) return;
+  ensureWeeklyGrid();
+  if(appData.weeklyGrid[cellModalDay]) delete appData.weeklyGrid[cellModalDay][cellModalSlot];
+  saveAppData();
+  renderWeeklyGrid();
+  closeCellModal();
+}
+
+function confirmAddLessonFromCell(){
+  const inp = document.getElementById("cellNewLessonInp");
+  const clsInp = document.getElementById("cellNewClassInp");
+  const lessonName = (inp?.value||"").trim();
+  const cls = (clsInp?.value||"").trim();
+  if(!lessonName) return;
+  const name = cls ? cls + " - " + lessonName : lessonName;
+  appData.lessons.push({ name, color: appData.lastColor });
+  saveAppData();
+  renderSettingsUI();
+  document.getElementById("cellAddLessonWrap").style.display = "none";
+  if(inp) inp.value = "";
+  if(clsInp) clsInp.value = "";
+  buildCellLessonSelect(name);
+}
+
+function cancelAddLessonFromCell(){
+  document.getElementById("cellAddLessonWrap").style.display = "none";
+  const inp = document.getElementById("cellNewLessonInp");
+  const clsInp = document.getElementById("cellNewClassInp");
+  if(inp) inp.value = "";
+  if(clsInp) clsInp.value = "";
+}
+
+function addWeeklyRow(){
+  ensureWeeklyGrid();
+  appData.weeklySlots = (appData.weeklySlots || 8) + 1;
+  saveAppData();
+  renderWeeklyGrid();
+}
+
+function removeWeeklyRow(){
+  ensureWeeklyGrid();
+  const current = appData.weeklySlots || 8;
+  if(current <= 1) return;
+  const lastSlot = current;
+  appData.activeDays.forEach(i => {
+    const day = dayNames[i];
+    if(appData.weeklyGrid[day]) delete appData.weeklyGrid[day][lastSlot];
+  });
+  appData.weeklySlots = current - 1;
+  saveAppData();
+  renderWeeklyGrid();
+}
+// ──────────────────────────────────────────────────────────
+
+function addItem(type, inputId){
+  const value = document.getElementById(inputId).value.trim();
+  if(!value) return;
+
+  if(type === "lessons"){
+    const cls = (document.getElementById("classLessonInp")?.value || "").trim();
+    const fullName = cls ? cls + " - " + value : value;
+    appData.lessons.push({ name: fullName, color: appData.lastColor });
+    const clsInp = document.getElementById("classLessonInp");
+    if(clsInp) clsInp.value = "";
+  }else{
+    appData.classes.push(value);
+  }
+
+  document.getElementById(inputId).value = "";
+  saveAppData();
+  renderSettingsUI();
+  if(type === "lessons"){
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const last = document.getElementById("lessonList")?.lastElementChild;
+      if(!last) return;
+      const rect = last.getBoundingClientRect();
+      const navEl3 = document.querySelector('.nav');
+      const navClearance = navEl3 ? (window.innerHeight - navEl3.getBoundingClientRect().top + 16) : 92;
+      const overshoot = rect.bottom - (window.innerHeight - navClearance);
+      if(overshoot > 0) document.body.scrollBy({ top: overshoot, behavior: "smooth" });
+    }));
+  }
+}
+
+function removeItem(type, index){
+  appData[type].splice(index, 1);
+  saveAppData();
+  renderSettingsUI();
+}
+
+function renderUserCard(){
+  const userContent = document.getElementById("userContent");
+  const guestContent = document.getElementById("guestContent");
+
+  if(isGuest()){
+    closeUserPanels();
+    userContent.style.display = "none";
+    guestContent.style.display = "block";
+  }else{
+    userContent.style.display = "block";
+    guestContent.style.display = "none";
+    setRegisterFormVisible(false);
+  }
+
+  syncAuthActionState();
+}
+
+function renderSettingsUI(){
+  document.getElementById("mainColorTrigger").style.background = appData.lastColor;
+  const sortedLessons = getSortedLessons();
+
+  const isStudent = appData.settings.role === "student";
+  document.getElementById("lessonList").innerHTML = sortedLessons.map(({ entry, index }) => {
+    const hasPlan = entry.planPath ? true : false;
+    const planIcon = isStudent ? "" : hasPlan
+      ? '<span class="plan-btn plan-btn--set" onclick="openPlanModal(' + index + ', event)" title="Plan atandı">📋✓</span>'
+      : '<span class="plan-btn" onclick="openPlanModal(' + index + ', event)" title="Plan ekle">📋</span>';
+    return '<div class="chip">' +
+      '<div class="swatch-small" style="background:' + entry.color + '" onclick="openPicker(event, ' + index + ')"></div>' +
+      entry.name +
+      planIcon +
+      ' <span class="remove" onclick="removeItem(\'lessons\',' + index + ')">x</span>' +
+      "</div>";
+  }).join("");
+
+  syncUserProfile();
+  renderWeeklyGrid();
+}
+
+function generateTimeSlots(rowCount){
+  const slots = [];
+  let current = appData.settings.start || "08:00";
+  const count = Math.max(rowCount, 1);
+
+  for(let index = 1; index <= count; index += 1){
+    let [hour, minute] = current.split(":").map(Number);
+    const start = String(hour).padStart(2, "0") + ":" + String(minute).padStart(2, "0");
+
+    minute += parseInt(appData.settings.duration, 10);
+    hour += Math.floor(minute / 60);
+    minute %= 60;
+
+    const end = String(hour).padStart(2, "0") + ":" + String(minute).padStart(2, "0");
+    slots.push(appData.settings.timeMode === "Giris-Cikis" ? start + "-" + end : start);
+
+    if(index === parseInt(appData.settings.lunchNo, 10)) minute += parseInt(appData.settings.lunch, 10);
+    else minute += parseInt(appData.settings.break, 10);
+
+    hour += Math.floor(minute / 60);
+    minute %= 60;
+    current = String(hour).padStart(2, "0") + ":" + String(minute).padStart(2, "0");
+  }
+
+  return slots;
+}
+
+function renderScheduleHeader(){
+  const header = document.getElementById("scheduleHeader");
+  const isStudent = appData.settings.role === "student";
+
+  header.className = "table-grid " + (isStudent ? "student" : "teacher");
+  header.innerHTML = "<div>#</div><div>DERS</div><div>SAAT</div><div></div>";
+}
+
+function renderSchedule(){
+  renderScheduleHeader();
+
+  const day = getSelectedDay();
+  const container = document.getElementById("rows");
+  if(!day){
+    container.innerHTML = "";
+    return;
+  }
+
+  const dayData = getScheduleRows(day);
+  const slots = generateTimeSlots(dayData.length);
+  const isStudent = appData.settings.role === "student";
+  const sortedLessons = getSortedLessons();
+  container.innerHTML = "";
+
+  dayData.forEach((row, index) => {
+    const div = document.createElement("div");
+    div.className = "row table-grid " + (isStudent ? "student" : "teacher");
+
+    const lessonCell = '<select class="ctrl" onchange="upd(' + index + ',\'lesson\',this.value)">' +
+      '<option value="">Ders Seç</option>' +
+      sortedLessons.map(({ entry }) => '<option ' + (row.lesson === entry.name ? "selected" : "") + ">" + entry.name + "</option>").join("") +
+      "</select>";
+
+    const timeCell = '<select class="ctrl" onchange="updChain(' + index + ',this.value)">' +
+      '<option value="-1">Saat Seç</option>' +
+      slots.map((slot, slotIndex) => '<option value="' + slotIndex + '" ' + (row.timeIdx == slotIndex ? "selected" : "") + ">" + slot + "</option>").join("") +
+      "</select>";
+
+    const deleteCell = '<div onclick="delRow(' + index + ')" style="color:red;cursor:pointer;text-align:center;font-weight:bold;">x</div>';
+
+    div.innerHTML = [
+      '<div style="color:var(--color-accent);font-weight:bold;text-align:center">' + (index + 1) + "</div>",
+      lessonCell,
+      timeCell,
+      deleteCell
+    ].join("");
+
+    container.appendChild(div);
+  });
+}
+
+function addRow(){
+  const day = getSelectedDay();
+  if(!day) return;
+
+  const dayRows = ensureDaySchedule(day);
+  dayRows.push({ class: "", lesson: "", color: appData.lastColor, timeIdx: -1 });
+  saveAppData();
+  renderSettingsUI();
+
+  setTimeout(() => {
+    const rows = document.getElementById("rows");
+    const lastRow = rows.lastElementChild;
+    if(!lastRow) return;
+
+    const rect = lastRow.getBoundingClientRect();
+    const navEl2 = document.querySelector('.nav');
+    const offset = navEl2 ? (window.innerHeight - navEl2.getBoundingClientRect().top + 16) : 90;
+    if(rect.bottom > window.innerHeight - offset){
+      document.body.scrollBy({ top: 100, behavior: "smooth" });
+    }
+  }, 100);
+}
+
+function delRow(index){
+  const day = getSelectedDay();
+  appData.schedule[day].splice(index, 1);
+  saveAppData();
+  renderSettingsUI();
+}
+
+function upd(index, key, value){
+  const day = getSelectedDay();
+  appData.schedule[day][index][key] = value;
+  saveAppData();
+}
+
+function updChain(index, value){
+  const day = getSelectedDay();
+  let start = parseInt(value, 10);
+  if(start === -1) return;
+
+  for(let cursor = index; cursor < appData.schedule[day].length; cursor += 1){
+    appData.schedule[day][cursor].timeIdx = start;
+    start += 1;
+  }
+
+  saveAppData();
+  renderSettingsUI();
+}
+
+function hydrateControlsFromData(){
+  document.getElementById("startTime").value = appData.settings.start || "08:15";
+  document.getElementById("lessonDur").value = appData.settings.duration ?? 40;
+  document.getElementById("breakDur").value = appData.settings.break ?? 10;
+  document.getElementById("lunchNo").value = appData.settings.lunchNo ?? 5;
+  document.getElementById("lunchDur").value = appData.settings.lunch ?? 45;
+  document.getElementById("timeMode").value = appData.settings.timeMode || "Giris-Cikis";
+}
+
+function goRegister(){
+  AppShell.hideRegisterPrompt();
+
+  const guestContent = document.getElementById("guestContent");
+  if(guestContent){
+    const card = guestContent.closest(".card");
+    if(card && !card.classList.contains("open")){
+      card.classList.add("open");
+      card.querySelector(".arrow")?.classList.add("open");
+    }
+    setRegisterFormVisible(false);
+    setLoginFormVisible(false);
+    setTimeout(() => guestContent.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+  }
+}
+
+function openLogin(){
+  AppShell.hideRegisterPrompt();
+  const emailInput = document.getElementById("loginEmail");
+  const passwordInput = document.getElementById("loginPassword");
+
+  if(emailInput) emailInput.value = appData.settings.email || "";
+  if(passwordInput) passwordInput.value = "";
+  setLoginFormVisible(true);
+}
+
+function cancelRegister(){
+  setRegisterFormVisible(false);
+}
+
+function cancelLogin(){
+  setLoginFormVisible(false);
+}
+
+async function submitRegister(){
+  const nameInput = document.getElementById("registerName");
+  const emailInput = document.getElementById("registerEmail");
+  const passwordInput = document.getElementById("registerPassword");
+
+  const name = nameInput ? nameInput.value.trim() : "";
+  const email = emailInput ? emailInput.value.trim() : "";
+  const password = passwordInput ? passwordInput.value.trim() : "";
+
+  if(!name || !email || !password){
+    showRegisterError("Tum alanlari doldurun.");
+    return;
+  }
+
+  if(!validateEmail(email)){
+    showRegisterError("Gecerli bir e-posta girin.");
+    return;
+  }
+
+  try{
+    await AppAuth.restoreAuthSession();
+    const firebaseUser = await AppAuth.registerWithEmail(email, password);
+    const nextData = AppAuth.applyAuthenticatedUser(appData, firebaseUser, {
+      name,
+      persist: false
+    });
+
+    syncAppData(nextData);
+    saveAuthIdentityOnly();
+    await AppShell.syncNow?.();
+    closeUserPanels();
+    setRegisterFormVisible(false);
+    renderDays();
+    syncUserProfile();
+    renderUserCard();
+    renderSettingsUI();
+  }catch(error){
+    const msg = error?.userMessage || error?.message || "Kayıt sırasında hata oluştu.";
+    showRegisterError(msg);
+
+    // Google ile giriş önerisi varsa butonu vurgula
+    if(error?.suggestedProvider === "google"){
+      const googleBtn = document.querySelector("#guestContent button[onclick='loginWithGoogle()']");
+      if(googleBtn){
+        setRegisterFormVisible(false);
+        googleBtn.style.outline = "2px solid #ea4335";
+        setTimeout(() => { googleBtn.style.outline = ""; }, 3000);
+      }
+    }
+  }
+}
+
+async function sendPasswordReset(){
+  const email = (document.getElementById("loginEmail")?.value || "").trim();
+  const resetError = document.getElementById("resetError");
+  const resetSuccess = document.getElementById("resetSuccess");
+
+  if(resetError){ resetError.style.display = "none"; resetError.textContent = ""; }
+  if(resetSuccess){ resetSuccess.style.display = "none"; resetSuccess.textContent = ""; }
+  document.getElementById("loginError").style.display = "none";
+
+  if(!email){
+    if(resetError){ resetError.textContent = "Önce e-posta adresinizi girin."; resetError.style.display = "block"; }
+    return;
+  }
+
+  if(!validateEmail(email)){
+    if(resetError){ resetError.textContent = "Geçerli bir e-posta adresi girin."; resetError.style.display = "block"; }
+    return;
+  }
+
+  try{
+    const { sendPasswordResetEmail } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js");
+    const { auth } = await import("./assets/js/firebase.js");
+    await sendPasswordResetEmail(auth, email);
+    if(resetSuccess){ resetSuccess.textContent = "Sıfırlama e-postası gönderildi. Gelen kutunuzu kontrol edin."; resetSuccess.style.display = "block"; }
+  }catch(err){
+    let msg = "Bir hata oluştu. Lütfen tekrar deneyin.";
+    const code = err?.code || "";
+    if(code === "auth/user-not-found" || code === "auth/invalid-credential") msg = "Bu e-posta ile kayıtlı hesap bulunamadı.";
+    else if(code === "auth/invalid-email") msg = "Geçersiz e-posta adresi.";
+    else if(code === "auth/too-many-requests") msg = "Çok fazla istek gönderildi. Lütfen bekleyin.";
+    if(resetError){ resetError.textContent = msg; resetError.style.display = "block"; }
+  }
+}
+
+async function submitLogin(){
+  const emailInput = document.getElementById("loginEmail");
+  const passwordInput = document.getElementById("loginPassword");
+
+  const email = emailInput ? emailInput.value.trim() : "";
+  const password = passwordInput ? passwordInput.value.trim() : "";
+
+  if(!email || !password){
+    showLoginError("Tum alanlari doldurun.");
+    return;
+  }
+
+  try{
+    await AppAuth.restoreAuthSession();
+    const firebaseUser = await AppAuth.loginWithEmail(email, password);
+    const nextData = AppAuth.applyAuthenticatedUser(appData, firebaseUser, {
+      name: appData.settings.name,
+      persist: false
+    });
+
+    syncAppData(nextData);
+    saveAuthIdentityOnly();
+    await AppShell.syncNow?.();
+    closeUserPanels();
+    setLoginFormVisible(false);
+    renderDays();
+    syncUserProfile();
+    renderUserCard();
+    renderSettingsUI();
+  }catch(error){
+    const msg = error?.userMessage || error?.message || "Giriş sırasında hata oluştu.";
+    showLoginError(msg);
+
+    // Google ile giriş önerisi varsa butonu vurgula
+    if(error?.suggestedProvider === "google"){
+      const googleBtn = document.querySelector("#guestContent button[onclick='loginWithGoogle()']");
+      if(googleBtn){
+        googleBtn.style.outline = "2px solid #ea4335";
+        setTimeout(() => { googleBtn.style.outline = ""; }, 3000);
+      }
+    }
+  }
+}
+
+window.loginWithGoogle = async function(){
+  const btn = document.querySelector("#guestContent button[onclick='loginWithGoogle()']");
+  const defaultText = "Google ile giriş yap";
+
+  if(btn){
+    btn.disabled = true;
+    btn.textContent = "Google ile bağlanılıyor...";
+  }
+
+  try{
+    const firebaseUser = await AppAuth.loginWithGoogle();
+    if(firebaseUser){
+      const nextData = AppAuth.applyAuthenticatedUser(appData, firebaseUser, {
+        name: firebaseUser.displayName || appData.settings.name,
+        email: firebaseUser.email || appData.settings.email,
+        provider: "google",
+        persist: false
+      });
+
+      syncAppData(nextData);
+      // Sadece kimlik bilgisini kaydet; lastModified değişmesin ve Firebase'e boş veri gitmesin
+      const _prior = AppShell.loadAppData() || {};
+      _prior.settings = Object.assign(_prior.settings || {}, appData.settings);
+      localStorage.setItem('ayarlar', JSON.stringify(_prior));
+      AppShell.syncAuthState();
+      closeUserPanels();
+      setLoginFormVisible(false);
+      renderDays();
+      syncUserProfile();
+      renderUserCard();
+      renderSettingsUI();
+      await AppShell.syncNow?.();
+    }
+    // Popup engellendiyse auth.js redirect fallback başlatabilir.
+  }catch(error){
+    if(btn){
+      btn.disabled = false;
+      btn.textContent = defaultText;
+    }
+    setLoginFormVisible(true);
+    showLoginError(error?.userMessage || error?.message || "Google girişi sırasında hata oluştu.");
+    return;
+  }
+
+  if(btn){
+    btn.disabled = false;
+    btn.textContent = defaultText;
+  }
+};
+
+document.querySelectorAll(".card input, .card select").forEach((element) => {
+  element.addEventListener("change", () => {
+    appData.settings.start = document.getElementById("startTime").value;
+    appData.settings.duration = document.getElementById("lessonDur").value;
+    appData.settings.break = document.getElementById("breakDur").value;
+    appData.settings.lunch = document.getElementById("lunchDur").value;
+    appData.settings.lunchNo = document.getElementById("lunchNo").value;
+    appData.settings.timeMode = document.getElementById("timeMode").value;
+    saveAppData();
+    renderSettingsUI();
+  });
+});
+
+window.onload = async () => {
+  const fontCtrl = document.getElementById("fontSizeCtrl");
+  const studentWrap = document.getElementById("studentClassWrap");
+  const studentInput = document.getElementById("studentClassInput");
+  const guestStudentWrap = document.getElementById("guestStudentClassWrap");
+  const guestStudentInput = document.getElementById("guestStudentClassInput");
+  const classCard = document.getElementById("classCard");
+  const daySelect = document.getElementById("daySelect");
+  const roleButtons = document.querySelectorAll(".role-chips .chip");
+
+  function updateRoleUI(){
+    const studentMode = appData.settings.role === "student";
+    if(studentWrap) studentWrap.style.display = studentMode && !isGuest() ? "block" : "none";
+    if(guestStudentWrap) guestStudentWrap.style.display = studentMode && isGuest() ? "block" : "none";
+    const clsInp = document.getElementById("classLessonInp");
+    if(clsInp) clsInp.style.display = studentMode ? "none" : "";
+  }
+
+  function updateRoleButtons(){
+    roleButtons.forEach((button) => {
+      button.classList.toggle("active", button.dataset.role === appData.settings.role);
+    });
+  }
+
+  function bindRoleButtons(){
+    roleButtons.forEach((button) => {
+      if(button.dataset.boundRoleButton === "true") return;
+      button.dataset.boundRoleButton = "true";
+      button.addEventListener("click", () => {
+        appData.settings.role = button.dataset.role;
+        saveAppData();
+        updateRoleUI();
+        updateRoleButtons();
+        renderSettingsUI();
+      });
+    });
+  }
+
+  function bindStudentClassInputs(){
+    if(studentInput && studentInput.dataset.boundStudentClass !== "true"){
+      studentInput.dataset.boundStudentClass = "true";
+      studentInput.addEventListener("input", function(){
+        appData.settings.studentClass = this.value.trim();
+        if(guestStudentInput) guestStudentInput.value = this.value.trim();
+        saveAppData();
+      });
+    }
+
+    if(guestStudentInput && guestStudentInput.dataset.boundStudentClass !== "true"){
+      guestStudentInput.dataset.boundStudentClass = "true";
+      guestStudentInput.addEventListener("input", function(){
+        appData.settings.studentClass = this.value.trim();
+        if(studentInput) studentInput.value = this.value.trim();
+        saveAppData();
+      });
+    }
+  }
+
+  function bindFontCtrl(){
+    if(!fontCtrl || fontCtrl.dataset.boundFontCtrl === "true") return;
+    fontCtrl.dataset.boundFontCtrl = "true";
+    fontCtrl.value = AppShell.getStoredFontSize();
+    fontCtrl.addEventListener("change", function(){
+      AppShell.applyFontSize(this.value, true);
+    });
+  }
+
+  function bindDaySelect(){
+    if(!daySelect || daySelect.dataset.boundDaySelect === "true") return;
+    daySelect.dataset.boundDaySelect = "true";
+    daySelect.addEventListener("change", () => {
+      renderSettingsUI();
+    });
+  }
+
+  function applyPageState(){
+    hydrateControlsFromData();
+    if(studentInput) studentInput.value = appData.settings.studentClass || "";
+    if(guestStudentInput) guestStudentInput.value = appData.settings.studentClass || "";
+    bindRoleButtons();
+    bindStudentClassInputs();
+    bindFontCtrl();
+    bindDaySelect();
+    updateRoleUI();
+    updateRoleButtons();
+    renderDays();
+    renderUserCard();
+    renderSettingsUI();
+  }
+
+  // İlk açılışta local veriyi hemen çiz (boş bekleme olmasın).
+  applyPageState();
+
+  // Auth senkronu arka planda tamamlanınca gerekli ise tekrar çiz.
+  try{
+    const restoredAppData = await AppAuth.ready;
+    if(restoredAppData){
+      syncAppData(restoredAppData);
+      applyPageState();
+    }
+  }catch(error){
+    // Auth hazır olmasa da sayfa kullanılabilir kalsın.
+  }
+
+  // Redirect/popup dönüşünde auth user geç gelebilir.
+  // Kullanıcı geldiği anda UI'yi anında registered moda al.
+  const { onAuthStateChanged } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js");
+  const { auth } = await import("./assets/js/firebase.js");
+  onAuthStateChanged(auth, async (user) => {
+    if(!user) return;
+
+    const nextData = AppAuth.applyAuthenticatedUser(appData, user, {
+      name: user.displayName || appData.settings.name,
+      email: user.email || appData.settings.email,
+      persist: false
+    });
+
+    syncAppData(nextData);
+    saveAuthIdentityOnly();
+    await AppShell.syncNow?.();
+    renderDays();
+    syncUserProfile();
+    renderUserCard();
+    renderSettingsUI();
+  });
+};
+
+function _syncModalOpen(){
+  const ids = ["cellModalOverlay","planModalOverlay","roleActionSheet"];
+  const any = ids.some(id => { const el = document.getElementById(id); return el && el.style.display === "flex"; });
+  document.body.classList.toggle("modal-open", any);
+}
+
+function openRoleActionSheet(){
+  const sheet = document.getElementById("roleActionSheet");
+  if(sheet){ sheet.style.display = "flex"; document.body.classList.add("modal-open"); }
+}
+
+function closeRoleActionSheet(){
+  const sheet = document.getElementById("roleActionSheet");
+  if(sheet) sheet.style.display = "none";
+  _syncModalOpen();
+}
+
+function roleActionSheetConfirm(){
+  closeRoleActionSheet();
+  AppShell.resetRoleAndData();
+}
+
+// Kart başlığına tıklanınca: toggle open/close + gerekirse yukarı kaydır
+document.querySelectorAll(".card-head").forEach((head) => {
+  head.addEventListener("click", function(){
+    const card = this.parentElement;
+
+    document.querySelectorAll(".card").forEach((entry) => {
+      if(entry !== card){
+        entry.classList.remove("open");
+        entry.querySelector(".arrow")?.classList.remove("open");
+      }
+    });
+
+    card.classList.toggle("open");
+    card.querySelector(".arrow")?.classList.toggle("open");
+
+    setTimeout(() => {
+      const rect = card.getBoundingClientRect();
+      const navEl = document.querySelector('.nav');
+      const clearance = navEl ? (window.innerHeight - navEl.getBoundingClientRect().top + 16) : 78;
+      const bottomTarget = window.innerHeight - clearance;
+      if(rect.bottom > bottomTarget){
+        const scrollNeeded = rect.bottom - bottomTarget;
+        const newTop = rect.top - scrollNeeded;
+        if(newTop < 8){
+          document.body.scrollBy({ top: rect.top - 8, behavior: "smooth" });
+        }else{
+          document.body.scrollBy({ top: scrollNeeded, behavior: "smooth" });
+        }
+      }
+    }, 200);
+  });
+});
+
+window.addEventListener('appDataSynced', function(e) {
+  const fresh = AppShell.loadAppData();
+  if(fresh){ syncAppData(fresh); renderDays(); renderSettingsUI(); }
+});
+
+window.addEventListener("load", () => {
+  if(new URLSearchParams(window.location.search).get("action") === "showuser"){
+    history.replaceState(null, "", window.location.pathname);
+    const targetEl = isGuest()
+      ? document.getElementById("guestContent")
+      : document.getElementById("userContent");
+    const targetCard = targetEl?.closest(".card");
+    if(targetCard && !targetCard.classList.contains("open")){
+      targetCard.classList.add("open");
+      targetCard.querySelector(".arrow")?.classList.add("open");
+    }
+    if(isGuest()){ setRegisterFormVisible(false); setLoginFormVisible(false); }
+    setTimeout(() => targetEl?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+  }
+});
+</script>
+</body>
+</html>

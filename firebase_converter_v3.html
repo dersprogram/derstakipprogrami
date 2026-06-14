@@ -1,0 +1,1846 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yıllık Plan → Firebase</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap');
+:root{--bg:#0b0d11;--surface:#12151c;--card:#181c26;--border:#222635;--accent:#4f8ef7;--accent2:#7c5cbf;--green:#34d399;--red:#f87171;--yellow:#fbbf24;--cyan:#22d3ee;--text:#dde4f0;--muted:#556070;--r:10px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+/* HEADER */
+header{display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
+.logo{width:32px;height:32px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+header h1{font-size:15px;font-weight:800}
+header small{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace}
+.hdr-space{flex:1}
+.hdr-badge{font-size:10px;font-family:'DM Mono',monospace;background:var(--card);border:1px solid var(--border);border-radius:99px;padding:3px 10px;color:var(--muted)}
+
+/* LAYOUT — sol sabit genişlik, sağ esnek */
+main{flex:1;display:flex;overflow:hidden;min-height:0}
+
+/* SOL PANEL */
+.left{width:300px;min-width:300px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+
+/* Butonlar her zaman altta sabit */
+.left-foot{padding:12px 14px;border-top:1px solid var(--border);background:var(--surface);flex-shrink:0;display:flex;flex-direction:column;gap:7px}
+
+/* Kaydırılabilir içerik */
+.left-body{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:14px;min-height:0}
+.left-body::-webkit-scrollbar{width:3px}
+.left-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:99px}
+
+.sec-lbl{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+
+/* Katlanabilir Firebase bölümü */
+.collapsible-header{display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:8px 10px;background:var(--card);border:1px solid var(--border);border-radius:var(--r);user-select:none}
+.collapsible-header h3{font-size:11px;font-weight:700;display:flex;align-items:center;gap:7px}
+.collapsible-header .arrow{font-size:10px;color:var(--muted);transition:transform .2s}
+.collapsible-header.open .arrow{transform:rotate(180deg)}
+.collapsible-header.connected{border-color:rgba(52,211,153,.4);background:rgba(52,211,153,.05);}
+.collapsible-body{display:none;padding:10px;background:var(--card);border:1px solid var(--border);border-top:none;border-radius:0 0 var(--r) var(--r);margin-top:-1px}
+.collapsible-body.open{display:block}
+.fb-status-row{display:flex;align-items:center;gap:8px;margin-top:8px}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-family:'DM Mono',monospace;padding:3px 8px;border-radius:99px}
+.pill.ok{background:rgba(52,211,153,.1);color:var(--green)}
+.pill.err{background:rgba(248,113,113,.1);color:var(--red)}
+.pill.idle{background:rgba(100,116,139,.08);color:var(--muted)}
+.pill-dot{width:5px;height:5px;border-radius:50%;background:currentColor;flex-shrink:0}
+
+.frow{display:flex;flex-direction:column;gap:3px;margin-bottom:8px}
+.frow:last-of-type{margin-bottom:0}
+.frow label{font-size:9px;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:.5px}
+.frow input{background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'DM Mono',monospace;font-size:11px;padding:6px 8px;outline:none;width:100%;transition:border-color .2s}
+.frow input:focus{border-color:var(--accent)}
+.frow input::placeholder{color:var(--muted)}
+.conn-btn{width:100%;padding:7px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:6px;color:#fff;font-family:'Syne',sans-serif;font-weight:700;font-size:11px;cursor:pointer;margin-top:8px;transition:opacity .2s}
+.conn-btn:hover{opacity:.85}
+.conn-btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* Referans JSON */
+
+
+/* Sınıf map */
+.smap{display:flex;flex-direction:column;gap:4px}
+.smap-row{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:6px 9px;display:flex;flex-direction:column;gap:4px}
+.smap-row-top{display:flex;align-items:center;gap:8px}
+.smap-row input{background:transparent;border:none;color:var(--accent);font-family:'DM Mono',monospace;font-size:11px;width:40px;outline:none;font-weight:500}
+.smap-row-lbl{font-size:10px;color:var(--muted);flex:1}
+.smap-row-dersler{font-size:9px;color:var(--muted);font-family:'DM Mono',monospace;padding-left:4px;line-height:1.5;opacity:.8}
+.smap-row-dersler span{display:inline-block;background:rgba(79,142,247,.08);border:1px solid var(--border);border-radius:3px;padding:1px 5px;margin:1px 2px 1px 0}
+.smap-unk-list{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.smap-unk-row{display:flex;align-items:center;gap:7px;padding:7px 8px;background:rgba(248,113,113,.06);border:1px solid rgba(248,113,113,.2);border-radius:7px}
+.smap-unk-input{background:var(--bg);border:2px solid rgba(248,113,113,.45);border-radius:5px;color:var(--accent);font-family:'DM Mono',monospace;font-size:14px;font-weight:800;width:52px;padding:5px 4px;outline:none;text-align:center;flex-shrink:0}
+.smap-unk-input:focus{border-color:var(--accent);background:rgba(79,142,247,.05)}
+.smap-unk-input::placeholder{color:rgba(248,113,113,.35);font-size:11px;font-weight:400}
+.smap-unk-name{font-size:10px;font-family:'DM Mono',monospace;color:var(--text);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.smap-unk-btn{background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:5px;color:#fff;font-family:'Syne',sans-serif;font-size:10px;font-weight:700;padding:5px 8px;cursor:pointer;flex-shrink:0;white-space:nowrap;opacity:.7;transition:opacity .15s}
+.smap-unk-btn:hover{opacity:1}
+.smap-unk-btn.applied{background:linear-gradient(135deg,var(--green),#059669);opacity:1}
+
+/* Drop zone */
+.mode-tabs{display:flex;gap:5px;margin-bottom:7px}
+.mode-tab{flex:1;padding:6px;background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--muted);font-family:'Syne',sans-serif;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s}
+.mode-tab.active{background:rgba(79,142,247,.1);border-color:var(--accent);color:var(--accent)}
+.drop{background:var(--card);border:2px dashed var(--border);border-radius:var(--r);padding:18px 12px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;position:relative}
+.drop.over{border-color:var(--accent);background:rgba(79,142,247,.05)}
+.drop:hover{border-color:rgba(79,142,247,.5)}
+.mode-tabs{position:relative;z-index:10}
+.drop-ico{font-size:24px;margin-bottom:6px}
+.drop h3{font-size:12px;font-weight:700;margin-bottom:2px}
+.drop p{font-size:10px;color:var(--muted)}
+
+/* Dosya listesi */
+.flist{display:flex;flex-direction:column;gap:4px}
+.fitem{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:7px 9px;display:flex;align-items:center;gap:7px;animation:si .15s ease}
+@keyframes si{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:translateY(0)}}
+.fitem-ico{font-size:13px;flex-shrink:0}
+.fitem-meta{flex:1;min-width:0}
+.fitem-name{font-family:'DM Mono',monospace;font-size:9.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fitem-sub{font-size:9px;color:var(--muted);margin-top:1px;display:flex;gap:5px;align-items:center}
+.fitem-sinif-input{background:rgba(79,142,247,.08);border:1px solid var(--border);border-radius:4px;color:var(--accent);font-family:'DM Mono',monospace;font-size:10px;width:36px;padding:1px 4px;outline:none;text-align:center}
+.fitem-sinif-input:focus{border-color:var(--accent)}
+.fitem-sinif-input.unknown{border-color:rgba(248,113,113,.5);color:#f87171}
+.fmt-tag{font-size:8px;padding:1px 4px;border-radius:3px;font-family:'DM Mono',monospace;font-weight:500}
+.fmt-tag.tr{background:rgba(79,142,247,.15);color:var(--accent)}
+.fmt-tag.en{background:rgba(34,211,238,.15);color:var(--cyan)}
+.fmt-tag.unk{background:rgba(100,116,139,.1);color:var(--muted)}
+.fbadge{font-size:9px;font-family:'DM Mono',monospace;padding:2px 5px;border-radius:99px;flex-shrink:0}
+.fbadge.pending{background:rgba(251,191,36,.1);color:var(--yellow)}
+.fbadge.ok{background:rgba(52,211,153,.1);color:var(--green)}
+.fbadge.err{background:rgba(248,113,113,.1);color:var(--red)}
+.fbadge.running{background:rgba(79,142,247,.1);color:var(--accent);animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.frem{background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:0;line-height:1;transition:color .15s;flex-shrink:0}
+.frem:hover{color:var(--red)}
+
+/* ANA BUTONLAR — her zaman görünür */
+.run-btn{width:100%;padding:11px;background:linear-gradient(135deg,var(--green),#059669);border:none;border-radius:var(--r);color:#0b0d11;font-family:'Syne',sans-serif;font-weight:800;font-size:13px;cursor:pointer;transition:opacity .2s,transform .1s;letter-spacing:.2px}
+.run-btn:hover:not(:disabled){opacity:.88}
+.run-btn:active:not(:disabled){transform:scale(.98)}
+.run-btn:disabled{opacity:.35;cursor:not-allowed}
+.dl-btn{width:100%;padding:9px;background:var(--card);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:'Syne',sans-serif;font-weight:600;font-size:12px;cursor:pointer;transition:border-color .2s,background .2s}
+.dl-btn:hover:not(:disabled){border-color:var(--accent);background:rgba(79,142,247,.05)}
+.dl-btn:disabled{opacity:.35;cursor:not-allowed}
+
+/* SAĞ PANEL */
+.right{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.stats{display:flex;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
+.stat{flex:1;padding:10px 14px;border-right:1px solid var(--border)}
+.stat:last-child{border-right:none}
+.stat-n{font-size:22px;font-weight:800;letter-spacing:-1px;line-height:1;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.stat-l{font-size:9px;color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing:.5px}
+.prog-wrap{padding:12px 20px;border-bottom:1px solid var(--border);background:var(--surface);display:none;flex-shrink:0}
+.prog-wrap.on{display:block}
+.prog-hdr{display:flex;justify-content:space-between;font-size:11px;margin-bottom:6px}
+.prog-lbl{font-weight:600}
+.prog-pct{font-family:'DM Mono',monospace;color:var(--accent)}
+.prog-track{height:4px;background:var(--border);border-radius:99px;overflow:hidden}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--green));border-radius:99px;transition:width .3s ease;width:0%}
+.phases{display:none;gap:5px;padding:10px 20px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
+.phases.on{display:flex}
+.phase-item{flex:1;background:var(--card);border:1px solid var(--border);border-radius:6px;padding:5px 8px;text-align:center;font-size:10px;color:var(--muted)}
+.phase-item.active{border-color:var(--accent);color:var(--accent);background:rgba(79,142,247,.06)}
+.phase-item.done{border-color:var(--green);color:var(--green);background:rgba(52,211,153,.05)}
+.log{flex:1;overflow-y:auto;padding:12px 20px;font-family:'DM Mono',monospace;font-size:11px;line-height:1.8;background:var(--bg);min-height:0}
+.log::-webkit-scrollbar{width:4px}
+.log::-webkit-scrollbar-thumb{background:var(--border);border-radius:99px}
+.log-line{display:flex;gap:10px;align-items:baseline}
+.log-time{color:var(--muted);font-size:9px;flex-shrink:0;width:52px}
+.log-msg{flex:1}
+.log-info .log-msg{color:var(--text)}
+.log-success .log-msg{color:var(--green)}
+.log-warn .log-msg{color:var(--yellow)}
+.log-error .log-msg{color:var(--red)}
+.log-section .log-msg{color:var(--accent);font-weight:500}
+.log-eng .log-msg{color:var(--cyan)}
+.empty-log{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:10px;color:var(--muted)}
+.empty-log .ei{font-size:40px;opacity:.2}
+.empty-log p{font-size:12px}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">📋</div>
+  <div><h1>Yıllık Plan Dönüştürücü</h1><small>TR &amp; EN Format • Paralel İşleme • Firebase</small></div>
+  <div class="hdr-space"></div>
+  <div class="hdr-badge" id="hdrBadge">Hazır</div>
+</header>
+
+<main>
+<!-- ══ SOL ══ -->
+<div class="left">
+
+  <!-- Kaydırılabilir içerik -->
+  <div class="left-body">
+
+    <!-- Firebase — katlanabilir -->
+    <div>
+      <div class="collapsible-header" id="fbHeader" onclick="toggleFb()">
+        <h3>🔥 Firebase Bağlantısı <span class="pill idle" id="fbPillSmall" style="margin-left:4px"><span class="pill-dot"></span>Bağlı değil</span></h3>
+        <span class="arrow">▼</span>
+      </div>
+      <div class="collapsible-body" id="fbBody">
+        <div style="padding-top:8px">
+          <div class="frow"><label>DATABASE URL</label><input id="dbUrl" placeholder="https://proje-rtdb.firebaseio.com" oninput="saveFbConfig()"/></div>
+          <div class="frow"><label>API KEY</label><input id="apiKey" type="password" placeholder="AIzaSy..." oninput="saveFbConfig()"/></div>
+          <div class="frow"><label>PROJECT ID</label><input id="projectId" placeholder="proje-adı" oninput="saveFbConfig()"/></div>
+          <div class="frow"><label>YÜKLEME YOLU</label><input id="fbPath" value="yillik-planlar" oninput="saveFbConfig()"/></div>
+          <div style="height:1px;background:var(--border);margin:10px 0"></div>
+          <div class="frow"><label>E-POSTA</label><input id="fbEmail" type="email" placeholder="admin@example.com" oninput="saveFbConfig()"/></div>
+          <div class="frow"><label>ŞİFRE</label><input id="fbPass" type="password" placeholder="••••••••" oninput="saveFbConfig()"/></div>
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+            <input type="checkbox" id="savePass" onchange="saveFbConfig()" style="accent-color:var(--accent);cursor:pointer;width:14px;height:14px"/>
+            <label for="savePass" style="font-size:10px;color:var(--muted);cursor:pointer;user-select:none">Şifreyi kaydet (otomatik bağlan)</label>
+          </div>
+          <div id="authStatus" style="font-size:10px;color:var(--muted);min-height:14px;margin-bottom:4px"></div>
+          <div style="display:flex;gap:8px;margin-top:6px">
+            <button class="conn-btn" id="connBtn" onclick="connectFirebase()" style="flex:1">Bağlan &amp; Giriş Yap</button>
+            <button class="conn-btn" id="discBtn" onclick="disconnectFirebase()" style="flex:0 0 auto;background:rgba(248,113,113,.15);color:#f87171;border:1px solid rgba(248,113,113,.3);display:none">Çıkış Yap</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Referans JSON -->
+    </div>
+
+    <!-- Sınıf map -->
+    <div id="sinifMapWrap" style="display:none">
+      <div class="sec-lbl">Klasör → Sınıf Key</div>
+      <div class="smap" id="smap"></div>
+    </div>
+
+    <!-- Drop zone -->
+    <div>
+      <div class="sec-lbl" id="flbl">xlsx Dosyaları</div>
+      <!-- Input'lar ekran dışında — .click() ile güvenle tetiklenir -->
+      <input type="file" id="fi" multiple accept=".xlsx"
+             style="position:fixed;top:-999px;left:-999px;width:1px;height:1px;opacity:0"
+             onchange="onFI(event)"/>
+      <input type="file" id="fiFolder" webkitdirectory multiple
+             style="position:fixed;top:-999px;left:-999px;width:1px;height:1px;opacity:0"
+             onchange="onFI(event)"/>
+
+      <!-- Tab seçici -->
+      <div class="mode-tabs">
+        <button class="mode-tab" id="tabFiles" onclick="setMode('files')">📄 Dosyalar</button>
+        <button class="mode-tab active" id="tabFolder" onclick="setMode('folder')">📁 Klasör</button>
+      </div>
+
+      <!-- Dosya modu -->
+      <div class="drop" id="dropFiles" style="display:none"
+           ondragover="ev(event,'over')" ondragleave="ev(event,'leave')" ondrop="ev(event,'drop')"
+           onclick="document.getElementById('fi').click()">
+        <div class="drop-ico">📄</div>
+        <h3>Dosyaları Sürükle &amp; Bırak</h3>
+        <p>veya tıkla • çoklu xlsx seçimi</p>
+      </div>
+
+      <!-- Klasör modu -->
+      <div class="drop" id="dropFolder"
+           ondragover="ev(event,'over')" ondragleave="ev(event,'leave')" ondrop="ev(event,'drop')"
+           onclick="document.getElementById('fiFolder').click()">
+        <div class="drop-ico">📁</div>
+        <h3>Klasörü Sürükle &amp; Bırak</h3>
+        <p>veya tıkla • klasör seç (alt klasörler sınıf key'i olur)</p>
+      </div>
+    </div>
+
+    <!-- Dosya listesi -->
+    <div class="flist" id="flist"></div>
+
+  </div><!-- left-body -->
+
+  <!-- Butonlar — her zaman altta -->
+  <div class="left-foot">
+    <button class="run-btn" id="runBtn" disabled onclick="run()">▶&nbsp;&nbsp;Dönüştür &amp; Firebase'e Yükle</button>
+    <button class="dl-btn" id="dlBtn" disabled onclick="dlJSON()">⬇&nbsp;&nbsp;Sadece JSON İndir</button>
+    <button class="dl-btn" id="clearBtn" onclick="clearAll()" style="color:#f87171;border-color:rgba(248,113,113,.3)">🗑&nbsp;&nbsp;Temizle</button>
+  </div>
+
+</div><!-- left -->
+
+<!-- ══ SAĞ ══ -->
+<div class="right">
+  <div class="stats">
+    <div class="stat"><div class="stat-n" id="sFiles">0</div><div class="stat-l">Dosya</div></div>
+    <div class="stat"><div class="stat-n" id="sDers">0</div><div class="stat-l">Ders</div></div>
+    <div class="stat"><div class="stat-n" id="sKayit">0</div><div class="stat-l">Kayıt</div></div>
+    <div class="stat"><div class="stat-n" id="sSinif">0</div><div class="stat-l">Sınıf</div></div>
+    <div class="stat"><div class="stat-n" id="sHata">0</div><div class="stat-l">Hata</div></div>
+  </div>
+  <div class="prog-wrap" id="progWrap">
+    <div class="prog-hdr"><span class="prog-lbl" id="progLbl">Hazırlanıyor...</span><span class="prog-pct" id="progPct">0%</span></div>
+    <div class="prog-track"><div class="prog-fill" id="progFill"></div></div>
+  </div>
+  <div class="phases" id="phases">
+    <div class="phase-item" id="ph1">1. Paralel Okuma</div>
+    <div class="phase-item" id="ph2">2. Dönüştürme</div>
+    <div class="phase-item" id="ph3">3. Birleştirme</div>
+    <div class="phase-item" id="ph4">4. Firebase</div>
+  </div>
+  <div class="log" id="log">
+    <div class="empty-log" id="emptyLog">
+      <div class="ei">⚡</div>
+      <p>Dosyaları yükle, Dönüştür butonuna bas</p>
+    </div>
+  </div>
+</div>
+</main>
+
+<script>
+const S={files:[],sinifMap:{},fbDb:null,fbOk:false,result:null};
+
+// Sayfa yüklenince kayıtlı config'i yükle
+document.addEventListener('DOMContentLoaded', loadFbConfig);
+
+// ── Firebase katla/aç ──
+function toggleFb(){
+  const h=document.getElementById('fbHeader');
+  const b=document.getElementById('fbBody');
+  h.classList.toggle('open');
+  b.classList.toggle('open');
+}
+
+// ── LOG ──
+function log(msg,type='info'){
+  const area=document.getElementById('log');
+  document.getElementById('emptyLog')?.remove();
+  const t=new Date().toTimeString().slice(0,8);
+  const d=document.createElement('div');
+  d.className='log-line log-'+type;
+  d.innerHTML='<span class="log-time">'+t+'</span><span class="log-msg">'+msg+'</span>';
+  area.appendChild(d);area.scrollTop=area.scrollHeight;
+}
+function logSec(m){log('── '+m+' ──','section');}
+
+// ── REFERANS JSON ──
+// loadRefJSON kaldırıldı — artık başlıktan okunuyor
+// Fallback ders adı
+function getDersAd(k,sn){
+  const fromKey = metindenDersAd(k, null);
+  if(fromKey) return fromKey;
+  if(sn&&sn.trim()){
+    const snClean = sn.trim();
+    const fromSn = metindenDersAd(snClean, null);
+    if(fromSn) return fromSn;
+    const generic = ['sayfa1','sheet1','eski-program','yeni-program','plan','data'];
+    const snNorm = normKey(snClean);
+    if(snClean.length<40 && !/20\d{2}/.test(snClean) && !generic.includes(snNorm))
+      return snClean;
+    const cleaned = titleToDersOnly(snClean);
+    if(cleaned) return cleaned;
+  }
+  return k.split('-').map(w=>w?w[0].toUpperCase()+w.slice(1):'').join(' ');
+}
+
+// ── FIREBASE ──
+// Firebase config'i localStorage'a kaydet
+function saveFbConfig(){
+  const savePass = document.getElementById('savePass').checked;
+  const cfg={
+    dbUrl:    document.getElementById('dbUrl').value,
+    apiKey:   document.getElementById('apiKey').value,
+    projectId:document.getElementById('projectId').value,
+    fbPath:   document.getElementById('fbPath').value,
+    fbEmail:  document.getElementById('fbEmail').value,
+    savePass,
+    fbPass:   savePass ? document.getElementById('fbPass').value : '',
+  };
+  localStorage.setItem('fbConfig', JSON.stringify(cfg));
+}
+
+// Sayfa açılınca localStorage'dan yükle, şifre kayıtlıysa otomatik bağlan
+async function loadFbConfig(){
+  try{
+    const cfg=JSON.parse(localStorage.getItem('fbConfig')||'{}');
+    if(cfg.dbUrl)    document.getElementById('dbUrl').value=cfg.dbUrl;
+    if(cfg.apiKey)   document.getElementById('apiKey').value=cfg.apiKey;
+    if(cfg.projectId)document.getElementById('projectId').value=cfg.projectId;
+    if(cfg.fbPath)   document.getElementById('fbPath').value=cfg.fbPath;
+    if(cfg.fbEmail)  document.getElementById('fbEmail').value=cfg.fbEmail;
+    if(cfg.savePass){
+      document.getElementById('savePass').checked=true;
+      if(cfg.fbPass) document.getElementById('fbPass').value=cfg.fbPass;
+      // Tüm gerekli alanlar doluysa otomatik bağlan
+      if(cfg.dbUrl && cfg.apiKey && cfg.projectId && cfg.fbEmail && cfg.fbPass){
+        document.getElementById('authStatus').textContent='⏳ Otomatik bağlanıyor...';
+        await connectFirebase();
+      }
+    }
+  }catch(e){}
+}
+
+// Bağlantıyı kes
+function disconnectFirebase(){
+  try{
+    firebase.apps.forEach(async a=>{
+      try{ await firebase.auth(a).signOut(); }catch(e){}
+      a.delete();
+    });
+  }catch(e){}
+  S.fbDb=null; S.fbOk=false;
+  setPill('idle','Bağlı değil');
+  document.getElementById('connBtn').style.display='';
+  document.getElementById('discBtn').style.display='none';
+  document.getElementById('fbHeader').classList.remove('connected');
+  document.getElementById('fbPass').value='';
+  document.getElementById('savePass').checked=false;
+  document.getElementById('authStatus').textContent='';
+  saveFbConfig();
+  log('Firebase bağlantısı kesildi','warn');
+}
+
+async function connectFirebase(){
+  const dbUrl     = document.getElementById('dbUrl').value.trim();
+  const apiKey    = document.getElementById('apiKey').value.trim();
+  const projectId = document.getElementById('projectId').value.trim();
+  const email     = document.getElementById('fbEmail').value.trim();
+  const pass      = document.getElementById('fbPass').value;
+  const authSt    = document.getElementById('authStatus');
+
+  if(!dbUrl||!apiKey||!projectId){setPill('err','Eksik bilgi');return;}
+
+  const btn=document.getElementById('connBtn');
+  btn.disabled=true; btn.textContent='Bağlanıyor...'; setPill('idle','Bağlanıyor...');
+  authSt.textContent='';
+
+  try{ firebase.apps.forEach(a=>a.delete()); }catch(e){}
+
+  try{
+    const app = firebase.initializeApp({apiKey, databaseURL:dbUrl, projectId});
+    S.fbDb = firebase.database(app);
+
+    // Email/şifre varsa giriş yap
+    if(email && pass){
+      authSt.textContent = '🔐 Giriş yapılıyor...';
+      const fbAuth = firebase.auth(app);
+      await fbAuth.signInWithEmailAndPassword(email, pass);
+      authSt.textContent = '✅ Giriş başarılı: ' + email;
+      log('Firebase auth: ' + email + ' olarak giriş yapıldı','success');
+    } else if(email && !pass){
+      authSt.textContent = '⚠️ Şifre giriniz';
+      throw new Error('Şifre boş');
+    } else {
+      authSt.textContent = '⚠️ Anonim bağlantı (yazma izni olmayabilir)';
+    }
+
+    // Database bağlantısını test et
+    await S.fbDb.ref('.info/connected').once('value');
+    S.fbOk = true;
+    setPill('ok', email ? '🔐 ' + email.split('@')[0] : 'Bağlı ✓');
+    document.getElementById('fbHeader').classList.add('connected');
+    document.getElementById('connBtn').style.display = 'none';
+    document.getElementById('discBtn').style.display = '';
+    log('Firebase bağlandı → ' + dbUrl, 'success');
+    // Paneli kapat
+    document.getElementById('fbHeader').classList.remove('open');
+    document.getElementById('fbBody').classList.remove('open');
+    saveFbConfig();
+  }catch(err){
+    S.fbOk = false;
+    setPill('err','Hata');
+    const msg = err.code === 'auth/wrong-password'  ? 'Şifre yanlış'       :
+                err.code === 'auth/user-not-found'   ? 'Kullanıcı bulunamadı':
+                err.code === 'auth/invalid-email'     ? 'Geçersiz e-posta'   :
+                err.code === 'auth/too-many-requests' ? 'Çok fazla deneme'   :
+                err.message;
+    authSt.textContent = '❌ ' + msg;
+    log('Firebase: ' + msg, 'error');
+  }
+  btn.disabled=false; btn.textContent='Bağlan & Giriş Yap';
+}
+function setPill(t,m){
+  ['fbPillSmall'].forEach(id=>{
+    const e=document.getElementById(id);if(!e)return;
+    e.className='pill '+t;e.innerHTML='<span class="pill-dot"></span>'+m;
+  });
+}
+
+// ── MOD SEÇİCİ ──
+function setMode(mode){
+  document.getElementById('dropFiles').style.display  = mode==='files'  ? '' : 'none';
+  document.getElementById('dropFolder').style.display = mode==='folder' ? '' : 'none';
+  document.getElementById('tabFiles').classList.toggle('active',  mode==='files');
+  document.getElementById('tabFolder').classList.toggle('active', mode==='folder');
+}
+
+// ── DOSYA YÜKLEME ──
+function ev(e,k){
+  e.preventDefault();
+  const dz=e.currentTarget;
+  if(k==='over')  dz.classList.add('over');
+  if(k==='leave') dz.classList.remove('over');
+  if(k==='drop'){
+    dz.classList.remove('over');
+    // Klasör sürükle-bırak: DataTransferItemList üzerinden recursive oku
+    if(e.dataTransfer.items && e.dataTransfer.items.length){
+      const allFiles=[];
+      const entries=[...e.dataTransfer.items].map(i=>i.webkitGetAsEntry&&i.webkitGetAsEntry()).filter(Boolean);
+      readEntries(entries, allFiles, ()=>{
+        addFiles(allFiles.filter(f=>f.name.endsWith('.xlsx')&&!f.name.startsWith('~')));
+      });
+    }else{
+      addFiles([...e.dataTransfer.files].filter(f=>f.name.endsWith('.xlsx')&&!f.name.startsWith('~')));
+    }
+  }
+}
+
+// Klasör entry'lerini recursive oku
+function readEntries(entries, out, done){
+  let pending=entries.length;
+  if(!pending){done();return;}
+  entries.forEach(entry=>{
+    if(entry.isFile){
+      entry.file(f=>{
+        // webkitRelativePath'i simüle et: entry.fullPath kullan
+        Object.defineProperty(f,'webkitRelativePath',{value:entry.fullPath.replace(/^\//,''),writable:false});
+        out.push(f);
+        if(--pending===0)done();
+      });
+    }else if(entry.isDirectory){
+      const reader=entry.createReader();
+      const readAll=(cb)=>{
+        reader.readEntries(results=>{
+          if(!results.length){cb([]);return;}
+          readAll(more=>cb([...results,...more]));
+        });
+      };
+      readAll(subEntries=>{
+        readEntries(subEntries,out,()=>{if(--pending===0)done();});
+      });
+    }else{if(--pending===0)done();}
+  });
+}
+
+function onFI(e){addFiles([...e.target.files].filter(f=>f.name.endsWith('.xlsx')&&!f.name.startsWith('~')));e.target.value='';}
+
+// ═══════════════════════════════════════════════════
+// SINIF & DERS TESPİTİ — xlsx başlığı + dosya/sheet adı
+// ═══════════════════════════════════════════════════
+
+// xlsx'in ilk 4 satırını tara, başlık metnini bul
+// "2025-2026 EĞİTİM ÖĞRETİM YILI 10. SINIF MATEMATİK DERSİ ÇERÇEVE YILLIK PLAN"
+function readSheetTitle(sheet){
+  if(!sheet||!sheet['!ref']) return '';
+  const range = XLSX.utils.decode_range(sheet['!ref']);
+  for(let r=range.s.r; r<=Math.min(range.e.r,5); r++){
+    for(let c=range.s.c; c<=Math.min(range.e.c,15); c++){
+      const cell = sheet[XLSX.utils.encode_cell({r,c})];
+      if(!cell||!cell.v) continue;
+      const txt = String(cell.v).trim();
+      // Başlık: uzun (>20 karakter), yıl bilgisi veya "sınıf" içeriyor
+      if(txt.length>20 && (
+        /20\d{2}/i.test(txt) ||
+        /s[ıi]n[ıi]f/i.test(txt) ||
+        /y[iı]ll[iı]k\s*plan/i.test(txt)
+      )){
+        return txt;
+      }
+    }
+  }
+  return '';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PLAN ANALİZ SİSTEMİ — 3 KAYNAKTAN BİLGİ TOPLAR
+// Öncelik: sheet adı > dosya adı > sayfa başlığı
+// ═══════════════════════════════════════════════════════════════
+
+// Normalize
+function normKey(t){
+  return String(t||'').toLocaleLowerCase('tr')
+    .replace(/ş/g,'s').replace(/ğ/g,'g').replace(/ü/g,'u')
+    .replace(/ö/g,'o').replace(/ç/g,'c').replace(/ı/g,'i').replace(/İ/g,'i')
+    .replace(/î/g,'i').replace(/â/g,'a').replace(/û/g,'u')
+    .replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+}
+
+// 1. Okul türü tespiti
+function okulTuru(metin){
+  const m = String(metin||'');
+  if(/fen\s*l[iı]se|f\.?\s*l\.?\b/i.test(m))       return 'FL';
+  if(/sosyal\s*bil.*\s*lise|sbl\b/i.test(m))         return 'SBL';
+  if(/imam\s*hatip|a[iı]hl\b/i.test(m))              return 'AİHL';
+  if(/maarif\b/i.test(m))                             return 'Maarif';
+  if(/\btymm\b/i.test(m))                             return 'TYMM';
+  if(/\bcydem\b/i.test(m))                            return 'ÇYDEM';
+  if(/anadolu\s*lise/i.test(m))                       return 'AL';
+  return null;
+}
+
+// 2. Sınıf tespiti
+function sinifBul(metin){
+  const m = String(metin||'');
+  const mn = normKey(m);
+  // "After Prep 9" / "Prep 9" → sınıf 9 (hazırlık sonrası N. sınıf)
+  const apHit = mn.match(/(?:after-)?prep-(\d{1,2})(?:[-.]|$)/);
+  if(apHit){ const n=+apHit[1]; if(n>=1&&n<=12) return String(n); }
+  // Hazırlık → 0
+  if(/hazirlik|hazrlk|prep/.test(mn)) return '0';
+  // Sıralı pattern'ler
+  const ps = [
+    /(\d{1,2})[.\s]*s[ıi]n[ıi]f/i,
+    /s[ıi]n[ıi]f[.\s]*(\d{1,2})/i,
+    /ilkokul\s+(\d)[.\s]*s[ıi]n[ıi]f/i,
+    /(\d{1,2})[.\s]*sinif/i,
+    /\b(\d{1,2})\s*[\(\[](fl|td|al|sbl)/i,
+    /[-_](\d{1,2})[-_.\s]/,
+    /(\d{1,2})[-_](tymm|cydem|aihl|sbl|fl)/i,
+    /[-_](\d{1,2})$/,
+  ];
+  for(const p of ps){
+    const hit = m.match(p);
+    if(hit){ const n=+hit[1]; if(n>=1&&n<=12) return String(n); }
+  }
+  // Özel prefix: "aihl11", "dkab12", "kuran10"
+  const prefixHit = m.match(/(dkab|kuran|hds|aihl)(\d{1,2})/i);
+  if(prefixHit){ const n=+prefixHit[2]; if(n>=1&&n<=12) return String(n); }
+  // Son çare: normKey sonda rakam
+  const endHit = mn.match(/(\d{1,2})(?:-tymm|-cydem|-aihl|-sbl|-fl|-td)?$/);
+  if(endHit){ const n=+endHit[1]; if(n>=1&&n<=12) return String(n); }
+  return null;
+}
+
+// 3. Ders tespiti — regex → [key, Türkçe ad]
+const DERS_MAP = [
+  [/matematik/i,                          'matematik',        'Matematik'],
+  [/fizik/i,                              'fizik',            'Fizik'],
+  [/kimya/i,                              'kimya',            'Kimya'],
+  [/biyoloji/i,                           'biyoloji',         'Biyoloji'],
+  [/türkçe|turkce/i,                      'turkce',           'Türkçe'],
+  [/türk\s*dili|edebiyat|\btde\b/i,       'tde',              'Türk Dili ve Edebiyatı'],
+  [/\btarih\b/i,                          'tarih',            'Tarih'],
+  [/inkılap|inkilap/i,                    'inkilap',          'İnkılap Tarihi ve Atatürkçülük'],
+  [/co[gğ]rafya/i,                        'cografya',         'Coğrafya'],
+  [/felsefe/i,                            'felsefe',          'Felsefe'],
+  [/psikoloji/i,                          'psikoloji',        'Psikoloji'],
+  [/sosyoloji/i,                          'sosyoloji',        'Sosyoloji'],
+  [/din\s*kültürü|din\s*kulturu|\bdkab\b/i,'din-kulturu',    'Din Kültürü ve Ahlak Bilgisi'],
+  [/ingilizce|english/i,                  'ingilizce',        'İngilizce'],
+  [/almanca|german/i,                     'almanca',          'Almanca'],
+  [/fransızca|fransizca/i,                'fransizca',        'Fransızca'],
+  [/beden\s*e[gğ]/i,                      'beden-egitimi',    'Beden Eğitimi ve Spor'],
+  [/müzik|muzik/i,                        'muzik',            'Müzik'],
+  [/görsel\s*sanat|gorsel\s*sanat/i,      'gorsel-sanatlar',  'Görsel Sanatlar'],
+  [/bilişim|bilisim/i,                    'bilisim',          'Bilişim Teknolojileri'],
+  [/fen\s*bilim/i,                        'fen-bilimleri',    'Fen Bilimleri'],
+  [/sosyal\s*bilgi/i,                     'sosyal-bilgiler',  'Sosyal Bilgiler'],
+  [/hayat\s*bilgi/i,                      'hayat-bilgisi',    'Hayat Bilgisi'],
+  [/kelam/i,                              'kelam',            'Kelam'],
+  [/\bhadis\b|\bhds\b/i,                  'hadis',            'Hadis'],
+  [/tefsir/i,                             'tefsir',           'Tefsir'],
+  [/siyer/i,                              'siyer',            'Siyer'],
+  [/fıkıh|fikih/i,                        'fikih',            'Fıkıh'],
+  [/akait|akaid/i,                        'akaid',            'Akaid'],
+  [/hitabet/i,                            'hitabet',          'Hitabet ve Mesleki Uygulama'],
+  [/mesleki\s*arapc/i,                    'mesleki-arapca',   'Mesleki Arapça'],
+  [/arapc|arapça/i,                       'arapca',           'Arapça'],
+  [/kur.?an|kuran/i,                      'kuran-i-kerim',    'Kuran-ı Kerim'],
+  [/temel\s*dini/i,                       'temel-dini',       'Temel Dini Bilgiler'],
+  [/islam\s*kültür|islam\s*kultur/i,      'islam-kultur',     'İslam Kültür ve Medeniyeti'],
+  [/\bcydem\b/i,                          'cydem',            'ÇYDEM'],
+];
+
+function dersBul(metin){
+  const m = String(metin||'');
+  for(const [rx,key,ad] of DERS_MAP){
+    if(rx.test(m)) return {key,ad};
+  }
+  return null;
+}
+
+// 4. Saat bilgisi
+function saatBul(metin){
+  const hit = String(metin||'').match(/\b([24])\s*saat\b/i);
+  return hit ? hit[1] : null;
+}
+
+// 5. ANA ANALİZ — 3 kaynaktan bilgi topla
+function planAnaliz(dosyaAdi, sheetAdi, baslik){
+  const kaynaklar = [
+    sheetAdi,   // en güvenilir
+    dosyaAdi,   // ikinci
+    baslik,     // üçüncü
+  ];
+  const sonuc = {sinif:null, dersKey:null, dersAd:null, okul:null, saat:null};
+
+  // "After Prep N" dosya adı → sınıf N, sheet adından önce (sheet içinde yanlış sınıf olabilir)
+  const mnFile = normKey(String(dosyaAdi||''));
+  const apHit2 = mnFile.match(/(?:after-)?prep-(\d{1,2})(?:[-.]|$)/);
+  if(apHit2){ const n=+apHit2[1]; if(n>=1&&n<=12) sonuc.sinif = String(n); }
+
+  for(const kaynak of kaynaklar){
+    if(!kaynak) continue;
+    if(!sonuc.sinif){
+      const s = sinifBul(kaynak);
+      if(s) sonuc.sinif = s;
+    }
+    if(!sonuc.dersKey){
+      const d = dersBul(kaynak);
+      if(d){ sonuc.dersKey = d.key; sonuc.dersAd = d.ad; }
+    }
+    if(!sonuc.okul){
+      const o = okulTuru(kaynak);
+      if(o) sonuc.okul = o;
+    }
+    if(!sonuc.saat){
+      const sa = saatBul(kaynak);
+      if(sa) sonuc.saat = sa;
+    }
+  }
+  return sonuc;
+}
+
+// 6. Firebase key üret
+function planKey(dersKey, okul, saat){
+  let k = dersKey || 'ders';
+  // Saat ayırıcısını key'e ekle
+  if(saat) k = k + '-' + saat + '-saat';
+  return k;
+}
+
+// 7. Görünen ad üret (plan-index için)
+function planAd(dersAd, okul, saat){
+  let ad = dersAd || 'Ders';
+  const ekler = [];
+  if(okul && okul !== 'AL') ekler.push(okul);  // AL çok genel, ekleme
+  if(saat) ekler.push(saat + ' Saat');
+  if(ekler.length) ad += ' (' + ekler.join(', ') + ')';
+  return ad;
+}
+
+// Eski fonksiyonlarla uyumluluk
+function titleToDersOnly(title){ const d=dersBul(title); return d?d.ad:''; }
+function titleToDersAd(title){ return titleToDersOnly(title); }
+function kisaltmadanTamAd(metin){ const d=dersBul(metin); return d?d.ad:null; }
+function metindenDersAd(metin, title){ 
+  const d = dersBul(metin)||dersBul(title);
+  return d ? d.ad : null;
+}
+
+// Metin içinden sınıf rakamı çıkar
+// "4. Sınıf", "12. sınıf", "SINIF 9", "10.sinif", "dkab4" vb.
+// sinifBul için alias (eski kodlarla uyumluluk)
+function extractSinif(text){ return sinifBul(text); }
+function _extractSinif_original(text){
+  if(!text) return null;
+  const t = text.toLocaleLowerCase('tr').replace(/\.xlsx$/i,'');
+  const patterns = [
+    /(\d{1,2})[.\s]*s[ıi]n[ıi]f/,   // "4. Sınıf", "10.sinif"
+    /s[ıi]n[ıi]f[.\s]*(\d{1,2})/,   // "Sınıf 9"
+    /\b(\d{1,2})[.\s]*sinif/,
+    /[-_\s](\d{1,2})[-_\s]/,        // "_9_", " 12 "
+    /[-_](\d{1,2})$/,                 // "kelam-12"
+    /(\d{1,2})\.s[ıi]n[ıi]f/,
+  ];
+  for(const p of patterns){
+    const m = t.match(p);
+    if(m && +m[1] >= 0 && +m[1] <= 12) return m[1];
+  }
+  // Dosya adı sonda rakamla bitiyorsa: "dkab4" → "4"
+  const endNum = t.match(/(\d{1,2})$/);
+  if(endNum && +endNum[1] <= 12) return endNum[1];
+  // Hazırlık sınıfı → 0
+  if(t.includes('hazirlik')||t.includes('hazirlık')||t.includes('prep')||t.includes('hazrlk')) return '0';
+  return null;
+}
+
+// Metin içinden ders adı ve key çıkar
+function extractDers(text){
+  if(!text) return null;
+  // Sınıf ifadesini, tarih ve yıl bilgisini temizle
+  let clean = text
+    .replace(/20\d{2}-20\d{2}\s*e[gğ][iı]tim.*?y[iı]l[iı]/gi,'')
+    .replace(/\d{1,2}[.\s]*s[ıi]n[ıi]f/gi,'')
+    .replace(/s[ıi]n[ıi]f[.\s]*\d{1,2}/gi,'')
+    .replace(/y[iı]ll[iı]k\s*plan/gi,'')
+    .replace(/[çc]er[çc]eve/gi,'')
+    .replace(/ta[şs]lak/gi,'')
+    .replace(/ders[iı]/gi,'')
+    .replace(/\d{4}/g,'')
+    .replace(/[-_.]+/g,' ')
+    .trim();
+  // Bilinen ders adları ile eşleştir
+  const DERS_MAP = {
+    'matematik':'matematik','mat':'matematik',
+    'fizik':'fizik','kimya':'kimya','biyoloji':'biyoloji',
+    'turkce':'turkce','turk dili':'turk-dili-ve-edebiyati',
+    'turk dili ve edebiyat':'turk-dili-ve-edebiyati',
+    'edebiyat':'turk-dili-ve-edebiyati',
+    'tarih':'tarih','cografya':'cografya','felsefe':'felsefe',
+    'din kulturu':'din-kulturu','dkab':'din-kulturu',
+    'ingilizce':'ingilizce','almanca':'almanca','fransizca':'fransizca',
+    'beden egitimi':'beden-egitimi','muzik':'muzik',
+    'gorsel sanatlar':'gorsel-sanatlar',
+    'bilisim':'bilisim-teknolojileri',
+    'fen bilimleri':'fen-bilimleri','fen':'fen-bilimleri',
+    'sosyal bilgiler':'sosyal-bilgiler',
+    'hayat bilgisi':'hayat-bilgisi',
+    'ahlak':'ahlak-ve-deger-egitimi',
+    'kelam':'kelam','hadis':'hadis','arapca':'arapca',
+    'mesleki arapca':'mesleki-arapca',
+    'kuran':'kuran-i-kerim',
+  };
+  const lower = clean.toLocaleLowerCase('tr')
+    .replace(/ş/g,'s').replace(/ğ/g,'g').replace(/ü/g,'u')
+    .replace(/ö/g,'o').replace(/ç/g,'c').replace(/ı/g,'i').replace(/İ/g,'i');
+  for(const [k,v] of Object.entries(DERS_MAP)){
+    if(lower.includes(k)) return v;
+  }
+  return clean.trim()||null;
+}
+
+// Ana fonksiyon — webkitRelativePath veya dosya/sheet adından sınıf+ders bul
+function guessSinif(file){
+  // 1. webkitRelativePath: klasör adı rakamsa direkt kullan (convert.js davranışı)
+  const rel = file.webkitRelativePath||'';
+  if(rel){
+    const parts = rel.split('/');
+    if(parts.length>=2){
+      const klasor = parts[parts.length-2];
+      if(/^\d{1,2}$/.test(klasor)) return klasor;
+    }
+  }
+  // 2. Dosya adından sınıf bul
+  const fromFile = extractSinif(file.name);
+  if(fromFile) return fromFile;
+  // 3. Bulunamazsa null — sheet okunduktan sonra tekrar denenecek
+  return null;
+}
+
+// Sheet adı + dosya adından sınıf bul — öncelik sırası:
+// 1. Sheet adı  ("12. sınıf", "ESKİ PROGRAM" gibi → sheet adında rakam)
+// 2. Dosya adı  ("12. sınıf ahl_kelam.xlsx")
+// 3. Bulunamazsa → '?'
+function guessSinifFromSheets(sheetNames, filename){
+  for(const sn of sheetNames){
+    const s = sinifBul(sn);
+    if(s) return s;
+  }
+  const fromFile = sinifBul(filename);
+  if(fromFile) return fromFile;
+  return '?';
+}
+
+// Başlık metninden de sınıf bul — sheet/dosya adı yetersizse kullan
+function extractSinifFromTitle(sheet){
+  const title = readSheetTitle(sheet);
+  return title ? extractSinif(title) : null;
+}
+
+// Ders key'ini dosya adı + sheet adından akıllıca üret
+function guessDersKey(filename, sheetName, sheetCount){
+  // Çok sheet → sheet adı key olur (convert.js gibi)
+  if(sheetCount > 1 && sheetName){
+    const fromSheet = extractDers(sheetName);
+    if(fromSheet) return slugify(fromSheet);
+    return slugify(sheetName);
+  }
+  // Tek sheet → dosya adından ders bul
+  const fromFile = extractDers(filename.replace(/\.xlsx$/i,''));
+  if(fromFile) return slugify(fromFile);
+  return slugify(filename.replace(/\.xlsx$/i,''));
+}
+
+// Kullanıcı dosyanın sınıfını manuel değiştirdi
+function setFileSinif(idx, val){
+  const entry = S.files[idx];
+  if(!entry) return;
+  const v = String(val||'').trim();
+  const n = parseInt(v);
+  if(!v || isNaN(n) || n<0 || n>12) return;
+  const sinifStr = String(n);
+  entry.sinif = sinifStr;
+  entry.sinifBulunamadi = false;
+  if(!S.sinifMap[sinifStr]) S.sinifMap[sinifStr] = sinifStr;
+  renderFiles();
+  buildSinifMap();
+}
+
+async function addFiles(files){
+  const newFiles = files.filter(f=>!S.files.find(x=>x.file.name===f.name));
+  if(!newFiles.length) return;
+
+  // 1. Dosya adından hızlı tahmin ile ekle
+  newFiles.forEach(file=>{
+    const sinif = guessSinif(file) || '?';
+    S.files.push({file, sinif, status:'pending', fmt:'?', sinifOnay:sinif!=='?'});
+  });
+  renderFiles(); buildSinifMap(); updateBtns();
+
+  // 2. Sheet adlarını okuyarak sınıfı güncelle (sadece bilinmeyenler için)
+  await Promise.all(newFiles.map(async file=>{
+    const entry = S.files.find(e=>e.file===file);
+    if(!entry || entry.sinifOnay) return;
+    try{
+      const buf = await file.arrayBuffer();
+      const wb  = XLSX.read(buf,{type:'array',bookSheets:true});
+      const s   = guessSinifFromSheets(wb.SheetNames||[], file.name);
+      if(s && s!=='?'){ entry.sinif=s; entry.sinifOnay=true; }
+    }catch(e){}
+  }));
+
+  buildSinifMap(); renderFiles();
+}
+function removeFile(i){
+  S.files.splice(i,1);
+  if(S.files.length===0){S.result=null;document.getElementById('dlBtn').disabled=true;}
+  renderFiles();buildSinifMap();updateBtns();
+}
+
+function renderFiles(){
+  const list=document.getElementById('flist');
+  list.innerHTML='';
+  const count=S.files.length;
+  document.getElementById('flbl').textContent='xlsx Dosyaları ('+(count||'')+ (count?')':' — henüz yok)');
+  document.getElementById('sFiles').textContent=count;
+  if(!count)return;
+  const bt={pending:'bekliyor',ok:'✓',err:'✗',running:'…'};
+  S.files.forEach((e,i)=>{
+    const d=document.createElement('div');d.className='fitem';
+    const fTag=e.fmt==='en'?'<span class="fmt-tag en">EN</span>':e.fmt==='tr'?'<span class="fmt-tag tr">TR</span>':'<span class="fmt-tag unk">?</span>';
+    const isUnkSinif = !e.sinif || e.sinif==='?';
+    const sinifVal = isUnkSinif ? '' : e.sinif;
+    d.innerHTML='<span class="fitem-ico">📄</span>'
+      +'<div class="fitem-meta">'
+      +'<div class="fitem-name" title="'+e.file.name+'">'+e.file.name+'</div>'
+      +'<div class="fitem-sub">'+fTag
+      +(isUnkSinif
+        ? '<input class="fitem-sinif-input unknown" value="" placeholder="??" maxlength="2"'
+          +' title="Sınıf: sol panelden gir"'
+          +' style="pointer-events:none;opacity:.5"/>'
+        : '<span class="fmt-tag tr" style="font-size:9px;padding:1px 5px;border-radius:3px">'+sinifVal+'</span>'
+      )
+      +'</div></div>'
+      +'<span class="fbadge '+e.status+'" id="b'+i+'">'+(bt[e.status]||'?')+'</span>'
+      +'<button class="frem" onclick="removeFile('+i+')" title="Kaldır">✕</button>';
+    list.appendChild(d);
+  });
+}
+
+// Sınıf tespit edilemeyen dosya için kaydet butonu
+function applyUnkSinif(idx){
+  const input = document.getElementById('unk_'+idx);
+  if(!input) return;
+  const val = input.value.trim();
+  const n = parseInt(val);
+  if(isNaN(n)||n<0||n>12){
+    input.style.borderColor='#f87171';
+    input.focus();
+    return;
+  }
+  setFileSinif(idx, val);
+  // Butonu yeşil yap
+  const row = document.getElementById('row_'+idx);
+  if(row){
+    const btn = row.querySelector('.smap-unk-btn');
+    if(btn){ btn.classList.add('applied'); btn.textContent='✓ Uygulandı'; }
+    row.style.borderColor='rgba(52,211,153,.3)';
+    row.style.background='rgba(52,211,153,.04)';
+  }
+}
+
+function buildSinifMap(){
+  const sl=[...new Set(S.files.map(f=>f.sinif))].sort((a,b)=>+a-+b||a.localeCompare(b));
+  sl.forEach(s=>{if(!S.sinifMap[s])S.sinifMap[s]=s;});
+  const wrap=document.getElementById('sinifMapWrap');
+  const c=document.getElementById('smap');c.innerHTML='';
+  if(!sl.length){wrap.style.display='none';return;}
+  wrap.style.display='block';
+  sl.forEach(s=>{
+    const r=document.createElement('div'); r.className='smap-row';
+    const isUnk = s==='?' || !s;
+    const curVal = isUnk ? '' : (S.sinifMap[s]||s);
+    r.style.borderColor = isUnk ? 'rgba(248,113,113,.4)' : '';
+
+    // Bu sınıftaki dosya adlarını topla
+    const dosyalar = S.files.filter(f=>f.sinif===s);
+
+    let derslerHTML = '';
+    if(!isUnk && dosyalar.length){
+      // Normal sınıflar: ders isimlerini göster
+      const isimler = dosyalar.map(f=>f.file.name.replace(/\.xlsx$/i,''));
+      derslerHTML = '<div class="smap-row-dersler">'
+        + isimler.map(d=>'<span>'+(d.length>28?d.slice(0,26)+'…':d)+'</span>').join('')
+        + '</div>';
+    } else if(isUnk) {
+      // ? sınıfı: her dosyayı ayrı satırda sınıf inputuyla listele
+      derslerHTML = '<div class="smap-unk-list">'
+        + dosyalar.map((f,fi)=>{
+            const globalIdx = S.files.indexOf(f);
+            const shortName = f.file.name.replace(/\.xlsx$/i,'');
+            const display = shortName.length>34 ? shortName.slice(0,32)+'…' : shortName;
+            const uid = 'unk_'+globalIdx;
+            return '<div class="smap-unk-row" id="row_'+globalIdx+'">'
+              + '<input class="smap-unk-input" id="'+uid+'" maxlength="2" placeholder="??"'
+              + ' title="Sınıf numarası gir (0-12)"'
+              + ' onkeydown="if(event.key===\'Enter\')applyUnkSinif('+globalIdx+')"/>'
+              + '<span class="smap-unk-name" title="'+f.file.name+'">'+display+'</span>'
+              + '<button class="smap-unk-btn" onclick="applyUnkSinif('+globalIdx+')" title="Kaydet">✓ Kaydet</button>'
+              + '</div>';
+          }).join('')
+        + '</div>';
+    }
+
+    r.innerHTML = '<div class="smap-row-top">'
+      + (isUnk ? '' : '<input type="text" value="'+curVal+'"'
+        + ' oninput="S.sinifMap[\''+s+'\']= this.value;renderFiles()"'
+        + ' title="Firebase sınıf key"/>')
+      + '<span class="smap-row-lbl" style="'+(isUnk?'color:#f87171':'')+'">'
+      + (isUnk
+          ? '⚠️ '+dosyalar.length+' dosyada sınıf tespit edilemedi — aşağıdan gir'
+          : 'Sınıf <b>'+s+'</b> — '+dosyalar.length+' dosya')
+      + '</span>'
+      + '</div>'
+      + derslerHTML;
+
+    c.appendChild(r);
+  });
+}
+function updateBtns(){
+  const has=S.files.length>0;
+  document.getElementById('runBtn').disabled=!has;
+  document.getElementById('dlBtn').disabled=!has;
+}
+
+// ── TEMIZLE ──
+function clearAll(){
+  S.files=[];S.result=null;S.sinifMap={};
+  document.getElementById('log').innerHTML='<div class="empty-log" id="emptyLog"><div class="ei">⚡</div><p>Dosyaları yükle, Dönüştür butonuna bas</p></div>';
+  document.getElementById('progWrap').classList.remove('on');
+  document.getElementById('phases').classList.remove('on');
+  document.getElementById('progFill').style.width='0%';
+  document.getElementById('progPct').textContent='0%';
+  document.getElementById('progLbl').textContent='Hazırlanıyor...';
+  document.getElementById('hdrBadge').textContent='Hazır';
+  document.getElementById('sDers').textContent='0';
+  document.getElementById('sKayit').textContent='0';
+  document.getElementById('sSinif').textContent='0';
+  document.getElementById('sHata').textContent='0';
+  // File input'ları sıfırla
+  document.getElementById('fi').value='';
+  document.getElementById('fiFolder').value='';
+  renderFiles();buildSinifMap();updateBtns();
+}
+
+// ── SLUGIFY ──
+function slugify(n){
+  return String(n).trim().toLocaleLowerCase('tr')
+    .replace(/ş/g,'s').replace(/ğ/g,'g').replace(/ü/g,'u')
+    .replace(/ö/g,'o').replace(/ç/g,'c').replace(/ı/g,'i').replace(/İ/g,'i')
+    .replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');
+}
+
+// ── FORMAT TESPİTİ ──
+function detectFormat(sheet){
+  if(!sheet||!sheet['!ref'])return'unknown';
+  const data=XLSX.utils.sheet_to_json(sheet,{header:1,defval:''});
+  for(let r=0;r<Math.min(data.length,8);r++){
+    const s=data[r].map(c=>String(c||'').toUpperCase()).join('|');
+    // EN: WEEK + (UNIT veya THEME veya LANGUAGE SKILLS/OUTCOMES)
+    if((s.includes('WEEK')||s.includes('WOCHE'))&&(s.includes('UNIT')||s.includes('THEME')||s.includes('LANGUAGE')||s.includes('LEARNING')||s.includes('THEMA')||s.includes('LEKTION')||s.includes('LERNERGEBNISSE')||s.includes('INHALTSRAHMEN')||s.includes('PROZESSKOMPONENTEN')))return'en';
+    if(s.includes('HAFTA')&&(s.includes('ÜNİTE')||s.includes('KAZANIM')||s.includes('UNITE')||s.includes('ÇIKTI')||s.includes('KONU')))return'tr';
+  }
+  return'unknown';
+}
+
+// ── İNGİLİZCE FORMAT ──
+function processSheetEN(sheet){
+  if(!sheet||!sheet['!ref'])return null;
+  const merges=sheet['!merges']||[];
+  const raw=XLSX.utils.sheet_to_json(sheet,{header:1,defval:''});
+  let hri=-1,cm={};
+  // Birden fazla satırda başlıklar olabilir (birleşik hücreler) — hepsini tara
+  for(let r=0;r<Math.min(raw.length,8);r++){
+    const up=raw[r].map(c=>String(c||'').toUpperCase());
+    const s=up.join('|');
+    // WEEK + (UNIT veya THEME veya LANGUAGE veya LEARNING)
+    if(s.includes('WEEK')&&(s.includes('UNIT')||s.includes('THEME')||s.includes('LANGUAGE')||s.includes('LEARNING'))){
+      hri=r;
+      up.forEach((h,i)=>{
+        if(h.includes('MONTH'))                                                                            cm.ay=i;
+        // 'NATIONAL DAYS AND SPECIAL WEEKS' gibi başlıklar WEEK içerse de hafta sütunu değil
+        if((h.includes('WEEK')||h.includes('WOCHE'))&&!h.includes('NATIONAL')&&!h.includes('SPECIAL')&&!h.includes('DAY')&&!h.includes('HOLIDAY')) cm.hafta=i;
+        if(h.includes('CLASS')||h.includes('HOUR')||h.includes('UNTERRICHT'))                             cm.saat=i;
+        // Unite: EN (UNIT, THEME), Temel Eğitim (UNIT/THEME), Almanca (THEMA, LEKTION)
+        if(h.includes('UNIT')||h.includes('THEME')||h.includes('THEMA')||(h.includes('LEKTION')&&!h.includes('ERGEBNIS'))) cm.unite=i;
+        // Konu/İçerik: EN9 (CONTENT FRAME), EN10-12 (FUNCTIONS/USEFUL LANGUAGE), Almanca (INHALTSRAHMEN)
+        if(h.includes('FUNCTIONS')||h.includes('USEFUL')||h.includes('CONTENT FRAME')||h.includes('INHALTSRAHMEN')) cm.konu=i;
+        // Öğrenme çıktıları: EN (LANGUAGE SKILL, LEARNING OUTCOME), Almanca (LERNERGEBNISSE)
+        if(h.includes('LANGUAGE SKILL')||h.includes('LEARNING OUTCOME')||h.includes('OUTCOME')||h.includes('LERNERGEBNISSE')) cm.ogrenme=i;
+        // Süreç bileşenleri: EN (SUGGESTED, MATERIAL, TASK, CONTEXT), Almanca (PROZESSKOMPONENTEN)
+        if(h.includes('SUGGESTED')||h.includes('MATERIAL')||h.includes('TASK')||h.includes('CONTEXT')||h.includes('PROZESSKOMPONENTEN')) cm.surec=i;
+        if(h.includes('NATIONAL')||h.includes('INTERNATIONAL')||h.includes('DAY')||h.includes('NATIONALE')) cm.gun=i;
+      });
+      break;
+    }
+  }
+  if(hri<0)return null;
+
+  function getMerged(ci,ri){
+    if(ci===undefined)return'';
+    for(const m of merges)
+      if(m.s.c===ci&&ri>=m.s.r&&ri<=m.e.r)
+        for(let r=m.s.r;r<=m.e.r;r++){const cell=sheet[XLSX.utils.encode_cell({r,c:ci})];if(cell&&cell.v!=null)return String(cell.v);}
+    return'';
+  }
+  const cSL=s=>String(s||'').replace(/[\r\n]+/g,' ').replace(/\s+/g,' ').trim();
+  const cML=s=>String(s||'').replace(/\r\n/g,'\n').replace(/\r/g,'\n').trim();
+  const MONTHS=['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
+  const OZEL_EN=/SEMESTER\s*BREAK|MID.?TERM\s*BREAK|FIRST\s*MID|SECOND\s*MID|\bHOLIDAY\s*WEEK|\bHOLIDAY\b|SCHOOL\s*BREAK|BREAK\s*WEEK|EID\s*BREAK|SOCIAL\s*ACTIV|\bFERIEN\b|SCHULFERIEN/i;
+  const OZEL_TR=/\b(\d+\.?\s*)?(dönem\s*ara\s*tatil|ara\s*tatil|yarıyıl\s*tatil|bayram\s*tatil)/i;
+  // EN formatında da tatil satırlarını önceden tara
+  const enRange = XLSX.utils.decode_range(sheet['!ref']);
+  const enTatilSatir = {};
+  for(let r=enRange.s.r;r<=enRange.e.r;r++){
+    for(let c=enRange.s.c;c<=enRange.e.c;c++){
+      const cell=sheet[XLSX.utils.encode_cell({r,c})];
+      if(!cell||!cell.v)continue;
+      const txt=String(cell.v).trim();
+      if(txt.length>4&&txt.length<200&&(OZEL_EN.test(txt)||OZEL_TR.test(txt.toLocaleLowerCase('tr')))){
+        enTatilSatir[r]=txt;break;
+      }
+    }
+  }
+
+  const last={hafta:'',unite:'',konu:'',ogrenme:'',surec:'',saat:''};
+  const result=[];
+
+  raw.slice(hri+1).forEach((row,i)=>{
+    // Fiziksel satır indeksini doğru hesapla (enRange.s.r offset)
+    const ri = enRange.s.r + hri+1+i;
+    const enRowIdx = enRange.s.r + hri+1+i;
+    // Önce önceden tespit edilmiş tatil satırı kontrolü
+    if(enTatilSatir[enRowIdx]){result.push({hafta:enTatilSatir[enRowIdx],tip:'ozel'});return;}
+    if(enTatilSatir[enRowIdx-1]) return; // Üst satırda işlendi
+
+    const c0=String(row[0]||'').trim();
+    const c1=String(row[1]||'').trim();
+    const checkStr=(c0+' '+c1);
+    // Tüm sütunlarda tatil metni ara (yarıyıl tatili hafta sütununda olmayabilir)
+    const rowVals=row.slice(0,Math.min(row.length,8)).map(v=>String(v||'').trim());
+    const anyTatil=rowVals.find(v=>v.length>4&&v.length<200&&(OZEL_EN.test(v)||OZEL_TR.test(v.toLocaleLowerCase('tr'))));
+    if(anyTatil||OZEL_EN.test(checkStr)||OZEL_TR.test(checkStr.toLocaleLowerCase('tr'))){
+      const txt=anyTatil||(c0||c1);
+      if(txt.length>4)result.push({hafta:txt,tip:'ozel'});
+      return;
+    }
+    // Ay adı satırı → atla
+    if(MONTHS.includes(c0.toUpperCase())&&!c1)return;
+
+    const get=ci=>{
+      if(ci===undefined)return'';
+      const v=row[ci];
+      return String(v!=null?v:getMerged(ci,ri)||'');
+    };
+    const hafta=cSL(get(cm.hafta));
+    const unite=cSL(get(cm.unite));
+    const konu =cML(get(cm.konu));
+    const og   =cML(get(cm.ogrenme));
+    const sr   =cML(get(cm.surec));
+    const saat =cSL(get(cm.saat));
+    if(hafta)last.hafta=hafta;
+    if(unite)last.unite=unite;
+    if(konu) last.konu=konu;
+    if(og)   last.ogrenme=og;
+    if(sr)   last.surec=sr;
+    if(saat) last.saat=saat;
+    if(!last.hafta)return;
+    if(!last.ogrenme&&!last.konu&&!last.surec)return;
+    const item={hafta:last.hafta};
+    if(last.unite)  item.unite=last.unite;
+    if(last.konu)   item.konu_icerik_cercevesi=last.konu;
+    if(last.ogrenme)item.ogrenme_ciktilari=last.ogrenme;
+    if(last.surec)  item.surec_bilesenleri=last.surec;
+    result.push(item);
+  });
+  return result.length?result:null;
+}
+
+// ── HAFTA TEMİZLEME: çift hafta + uzun metin ──
+// "8. Hafta 27-31 Ekim 9. Hafta 3-7 Kasım" → iki ayrı kayıt
+// 300+ karakter hafta değerleri (yasal metin vb.) → kaldır
+function splitMergedHafta(item){
+  if(!item||item.tip==='ozel') return [item];
+  const hafta=item.hafta||'';
+  if(hafta.length>300) return [];
+  // Ortaokul TR: çok satırlı hücre — sadece HER PARÇA hafta numarası içeriyorsa böl
+  // "1. Hafta:\n8-12 Eylül" gibi sayı+tarih ikililerini tek satıra birleştir
+  if(/\n/.test(hafta)){
+    const parts=hafta.split('\n').map(s=>s.trim()).filter(Boolean);
+    if(parts.length>1){
+      const allAreWeeks=parts.every(p=>/\d{1,2}[.\s]*[Hh]afta/.test(p));
+      if(allAreWeeks) return parts.map(h=>({...item,hafta:h}));
+      return [{...item,hafta:parts.join(' ')}];
+    }
+  }
+  // Numaralı çift hafta: "8. Hafta ... 9. Hafta ..."
+  const hits=[...hafta.matchAll(/\d{1,2}[.\s]*[Hh]afta/g)];
+  if(hits.length<2) return [item];
+  const splitIdx=hits[1].index;
+  const p1=hafta.slice(0,splitIdx).trim();
+  const p2=hafta.slice(splitIdx).trim();
+  if(!p1||!p2) return [item];
+  return [{...item,hafta:p1},{...item,hafta:p2}];
+}
+
+// ── TÜRKÇE FORMAT (orijinal formül) ──
+function processSheetTR(sheet){
+  if(!sheet||!sheet['!ref'])return null;
+  const merges=sheet['!merges']||[];
+  const nrm=s=>String(s).trim().toLocaleLowerCase('tr').replace(/\r|\n/g,' ').replace(/\s+/g,' ');
+  const cSL=s=>String(s||'').replace(/\r\n/g,' ').replace(/\r/g,' ').replace(/\n/g,' ').replace(/\s+/g,' ').trim();
+  const cML=s=>String(s||'').replace(/\r\n/g,'\n').replace(/\r/g,'\n').trim();
+  function fHR(sheet){
+    const range=XLSX.utils.decode_range(sheet['!ref']);
+    // Genişletilmiş anahtar kelimeler — Arapça/özel plan başlıklarını da kapsar
+    const kws=['hafta','ay','ünite','tema','konu','kazanım','öğrenme','süreç','açıklama','ders','saati',
+               'çıktı','çıktılar','kanıt','bileşen','içerik','çerçeve','belirli gün','unite','konu'];
+    let bR=range.s.r,bS=0;
+    for(let r=range.s.r;r<=Math.min(range.e.r,10);r++){
+      let sc=0;
+      for(let c=range.s.c;c<=range.e.c;c++){
+        const cell=sheet[XLSX.utils.encode_cell({r,c})];if(!cell||!cell.v)continue;
+        const nm=nrm(String(cell.v));if(nm.length<=120&&kws.some(k=>nm.includes(k)))sc++;
+      }
+      if(sc>bS){bS=sc;bR=r;}
+    }
+    // Birleşik başlıklar için: bulunan satırın çevresinde (r-1, r, r+1) kontrol et
+    // ve içerik satırlarının hemen öncesindeki satırı seç
+    return bR;
+  }
+  const headerRow=fHR(sheet);
+  const data=XLSX.utils.sheet_to_json(sheet,{range:headerRow});
+  if(!data.length)return null;
+  const headers=Object.keys(data[0]);
+  const used=new Set();
+  const fc=patterns=>{const f=headers.find(h=>{if(used.has(h))return false;return patterns.some(p=>nrm(h).includes(nrm(p)));});if(f)used.add(f);return f||null;};
+  const gci=k=>k?headers.indexOf(k):-1;
+  // 'Belirli Gün ve Haftalar' gibi birleşik başlıklar 'hafta' içerdiğinden yanlış eşleşmeyi önle:
+  // önce tam/ön-eşleşme dene, sonra 'belirli' içermeyen includes fallback
+  const hK=(()=>{let h=headers.find(h=>!used.has(h)&&/^hafta/.test(nrm(h)));if(!h)h=headers.find(h=>!used.has(h)&&nrm(h).includes('hafta')&&!nrm(h).includes('belirli'));if(h)used.add(h);return h||null;})();
+  const uK=fc(['ünite/tema','ünite / tema','unite/tema','unite / tema','ünite/konu','ünite / konu','ünite','unite','tema','modül','modul']);
+  const kIK=fc(['içerik çerçevesi','konu (içerik','konu/içerik','konu / içerik','içerik çer']);
+  const koK=fc(['konu','alt başlık','alt baslik']);
+  const ogK=fc(['öğrenme çıktıları','ogrenme ciktilari','çıktılar','ciktilar','hedefler','language skill','learning outcome']);
+  const kaK=fc(['kazanım açıklaması','kazanim aciklamasi']);
+  const kzK=fc(['kazanım','kazanim']);
+  const srK=fc(['süreç bileşenleri','surec bilesenleri','öğrenme-öğretme','etkinlikler','kanıt','suggested','material','task']);
+  const acK=fc(['açıklama','aciklama','notlar','programlar arası','belirli gün','national','international']);
+  fc(['belirli gün ve haftalar','belirli gün','belirli gun']);
+  const dsK=fc(['ders saati','ders saat','ders-saati','derssaati']);
+
+  // ── TÜM SÜTUNLARI YAKALA ──
+  const knownKeys=new Set([hK,uK,kIK,koK,ogK,kaK,kzK,srK,acK,dsK].filter(Boolean));
+  function normKeyField(s){
+    return normKey(s).replace(/-/g,'_').replace(/^_+|_+$/g,'').substring(0,50);
+  }
+  const extraCols=[];
+  for(const h of headers){
+    if(knownKeys.has(h)) continue;
+    const nk=normKeyField(h);
+    if(!nk||nk.length<2) continue;
+    if(/belirli|ozel_gun|national|international/.test(nk)) continue;
+    extraCols.push({key:h, field:nk, idx:headers.indexOf(h), tr:cML});
+  }
+
+  // icAnh: en az birinde değer olması yeterli (ogK bulunamadıysa uK veya kIK de sayılır)
+  const icAnh=[ogK,kzK,kaK,srK,acK,uK,kIK].filter(Boolean);
+  if(!icAnh.length)return null;
+  const uField='unite'; // v6 ile uyumlu: her zaman 'unite' kullan
+  const cfC=[
+    {key:hK, field:'hafta',                idx:gci(hK), tr:cSL},
+    {key:uK, field:uField,                 idx:gci(uK), tr:cSL},
+    {key:kIK,field:'konu_icerik_cercevesi',idx:gci(kIK),tr:cSL},
+    {key:koK,field:'konu',                 idx:gci(koK),tr:cSL},
+    {key:ogK,field:'ogrenme_ciktilari',    idx:gci(ogK),tr:cML},
+    {key:kaK,field:'kazanim_aciklamasi',   idx:gci(kaK),tr:cML},
+    {key:kzK,field:'kazanim',              idx:gci(kzK),tr:cSL},
+    {key:srK,field:'surec_bilesenleri',    idx:gci(srK),tr:cML},
+    {key:dsK,field:'sure',                 idx:gci(dsK),tr:cSL},
+    ...extraCols,
+  ];
+  function getMBI(ci,ri){if(ci===-1)return'';for(const m of merges){if(m.s.c===ci&&ri>=m.s.r&&ri<=m.e.r)for(let r=m.s.r;r<=m.e.r;r++){const cell=sheet[XLSX.utils.encode_cell({r,c:ci})];if(cell&&cell.v)return cell.v;}}return'';}
+  function gv(row,key,ci,er){let v=key?(row[key]||''):'';if(!v&&ci!==-1)v=getMBI(ci,er);return String(v||'').trim();}
+  const last={};cfC.forEach(c=>{last[c.field]='';});
+  const CORE_ORDER=['hafta','unite','unite_tema','konu_icerik_cercevesi','konu','ogrenme_ciktilari','kazanim','kazanim_aciklamasi','surec_bilesenleri','sure'];
+  const ORDER=[...CORE_ORDER,...extraCols.map(c=>c.field).filter(f=>!CORE_ORDER.includes(f))];
+  // OZEL_DESEN — convert.js ile birebir aynı
+  // toLocaleLowerCase("tr") zorunlu: JS /i flag'i Türkçe İ(U+0130) eşleştirmiyor
+  // Sadece gerçek tatil haftaları — sosyal etkinlik ve okul temelli planlama tatil değil
+  const OZEL_DESEN = /dönem\s*ara\s*tatili?|yarıyıl\s*tatili?|bayram\s*tatili?|\bara\s*tatil\b/;
+
+  // Tatil satırlarını önceden tara — birleştirilmiş büyük hücreler
+  // Bu satırlarda hafta/ünite/kazanım sütunları boş, tatil metni tek büyük hücrede
+  const range = XLSX.utils.decode_range(sheet['!ref']);
+  // rowIndex → tatil metni (sadece gerçek tatil satırları)
+  const tatilSatirlari = {};
+  for(let r = range.s.r; r <= range.e.r; r++){
+    // Bu satırda B sütunu (hafta) boş mu? (tatil satırlarının özelliği)
+    let haftaHucresi = false;
+    for(let c = range.s.c; c <= Math.min(range.s.c+2, range.e.c); c++){
+      const cell = sheet[XLSX.utils.encode_cell({r,c})];
+      if(cell && cell.v && String(cell.v).trim().length > 0){
+        haftaHucresi = true; break;
+      }
+    }
+    // Herhangi bir sütunda tatil metni ara
+    for(let c = range.s.c; c <= range.e.c; c++){
+      const cell = sheet[XLSX.utils.encode_cell({r,c})];
+      if(!cell||!cell.v) continue;
+      const txt = String(cell.v).trim();
+      if(txt.length > 8 && txt.length < 250 && OZEL_DESEN.test(txt.toLocaleLowerCase("tr"))){
+        tatilSatirlari[r] = txt;
+        break;
+      }
+    }
+  }
+
+  // convert.js ile birebir aynı tatil + içerik tespit mantığı
+  // emittedTatilRows: aynı tatili birden fazla eklemez
+  const emittedTatilRows = new Set();
+
+  return data.map((row,i)=>{
+    const er=headerRow+i+1;const raw={};let hBS=false;
+
+    for(const col of cfC){
+      if(!col.key)continue;
+      const v=gv(row,col.key,col.idx,er);
+      if(v&&!(col.field==='hafta'&&v.length>300)){last[col.field]=v;if(col.field==='hafta')hBS=true;}
+      if(last[col.field])raw[col.field]=col.tr?col.tr(last[col.field]):last[col.field];
+    }
+
+    // 1. Tatil tespiti — convert.js ile birebir aynı
+    // Sadece o satırın kendi değerlerine bak
+    const ozelKontrolSutunlari=[hK,uK,koK,kIK,ogK,srK,acK].filter(Boolean)
+      .map(k=>String(row[k]||'').trim());
+    const ozelMetin=ozelKontrolSutunlari
+      .find(v=>v.length>8&&v.length<=200&&OZEL_DESEN.test(v.toLocaleLowerCase('tr')));
+
+    if(ozelMetin){
+      // Aynı tatil tekrar mı?
+      const tatilKey = ozelMetin.trim();
+      if(emittedTatilRows.has(tatilKey)) return null;
+      emittedTatilRows.add(tatilKey);
+      if(hBS&&raw['hafta']&&raw['hafta']!==ozelMetin)
+        return{hafta:raw['hafta'],tip:'ozel',aciklama:ozelMetin};
+      return{hafta:ozelMetin,tip:'ozel'};
+    }
+
+    // 2. Birleştirilmiş büyük hücredeki tatil (tatilSatirlari'nda yakalandı)
+    if(tatilSatirlari[er]){
+      const tatilKey2 = tatilSatirlari[er].trim();
+      if(emittedTatilRows.has(tatilKey2)) return null;
+      emittedTatilRows.add(tatilKey2);
+      return{hafta:tatilSatirlari[er],tip:'ozel'};
+    }
+
+    // 3. İçerik var mı?
+    const kendi=icAnh.some(key=>{const ci=headers.indexOf(key);const v=row[key]||getMBI(ci,er);return v&&String(v).trim().length>2;});
+    if(!kendi)return null;
+    const item={};for(const f of ORDER){if(raw[f])item[f]=raw[f];}return item;
+  }).filter(Boolean).flatMap(splitMergedHafta);
+}
+
+// Aynı haftaya ait satırları tek kayıtta birleştirir.
+// konu_icerik_cercevesi (DİNLEME, KONUŞMA, OKUMA, YAZMA) → alt dizi olur.
+function groupByWeek(items){
+  if(!items||!items.length) return items;
+  const KIC_KEY={
+    'DİNLEME':'dinleme','KONUŞMA':'konusma','OKUMA':'okuma','YAZMA':'yazma',
+    'SPEAKING':'speaking','LISTENING':'listening','READING':'reading','WRITING':'writing',
+  };
+  const result=[];
+  const weekMap=new Map(); // hafta metni → result dizisindeki index
+
+  for(const item of items){
+    if(item.tip==='ozel'){result.push(item);continue;}
+    const hafta=item.hafta||'';
+    if(!hafta) continue;
+
+    let entry;
+    if(weekMap.has(hafta)){
+      entry=result[weekMap.get(hafta)];
+    }else{
+      entry={hafta};
+      weekMap.set(hafta,result.length);
+      result.push(entry);
+    }
+
+    // Ünite — ilk geleni koru
+    if(!entry.unite&&item.unite) entry.unite=item.unite;
+
+    // konu_icerik_cercevesi → beceri adıysa (DİNLEME vb.) iç içe obje, konu adıysa düz alan
+    const kic=(item.konu_icerik_cercevesi||'').trim().toUpperCase();
+    if(kic){
+      const isSkill=!!KIC_KEY[kic];
+      if(isSkill){
+        // DİNLEME / KONUŞMA / OKUMA / YAZMA vb. → slug key altında grupla
+        const fk=KIC_KEY[kic];
+        if(!entry[fk]) entry[fk]={};
+        if(item.ogrenme_ciktilari){
+          if(!entry[fk].ogrenme_ciktilari)
+            entry[fk].ogrenme_ciktilari=item.ogrenme_ciktilari;
+          else if(!entry[fk].ogrenme_ciktilari.includes(item.ogrenme_ciktilari))
+            entry[fk].ogrenme_ciktilari+='\n'+item.ogrenme_ciktilari;
+        }
+        if(item.surec_bilesenleri){
+          if(!entry[fk].surec_bilesenleri)
+            entry[fk].surec_bilesenleri=item.surec_bilesenleri;
+          else if(!entry[fk].surec_bilesenleri.includes(item.surec_bilesenleri))
+            entry[fk].surec_bilesenleri+='\n'+item.surec_bilesenleri;
+        }
+      }else{
+        // Konu adı (ör. "Fıkıh ve Fıkıh Usulü") → konu + düz ogrenme/surec
+        if(!entry.konu) entry.konu=item.konu_icerik_cercevesi.trim();
+        if(item.ogrenme_ciktilari){
+          if(!entry.ogrenme_ciktilari)
+            entry.ogrenme_ciktilari=item.ogrenme_ciktilari;
+          else if(!entry.ogrenme_ciktilari.includes(item.ogrenme_ciktilari))
+            entry.ogrenme_ciktilari+='\n'+item.ogrenme_ciktilari;
+        }
+        if(item.surec_bilesenleri){
+          if(!entry.surec_bilesenleri)
+            entry.surec_bilesenleri=item.surec_bilesenleri;
+          else if(!entry.surec_bilesenleri.includes(item.surec_bilesenleri))
+            entry.surec_bilesenleri+='\n'+item.surec_bilesenleri;
+        }
+      }
+    }
+
+    // Diğer üst düzey string alanlar — ilk geleni koru; ekstra sütunlar append
+    for(const [k,v] of Object.entries(item)){
+      if(['hafta','unite','konu_icerik_cercevesi'].includes(k)) continue;
+      if(typeof v!=='string') continue;
+      if(!entry[k]) entry[k]=v;
+      else if(!entry[k].includes(v)) entry[k]+='\n'+v;
+    }
+  }
+  return result;
+}
+
+// ── ORTAOKUL TÜRKÇE TESPİTİ ──
+// İki satırlı başlık: üst satır HAFTA|ÜNİTE|KONU|KAZANIM(merged)|YÖNTEM
+//                     alt satır DİNLEME/İZLEME|KONUŞMA|OKUMA|YAZMA
+function detectOrtaokulTurkce(sheet){
+  if(!sheet||!sheet['!ref']) return null;
+  const range=XLSX.utils.decode_range(sheet['!ref']);
+  const nrm=s=>String(s||'').toLocaleLowerCase('tr').replace(/\s+/g,' ').trim();
+
+  for(let r=range.s.r;r<=Math.min(range.e.r,12);r++){
+    const rowVals=[];
+    for(let c=range.s.c;c<=Math.min(range.e.c,25);c++){
+      const cell=sheet[XLSX.utils.encode_cell({r,c})];
+      rowVals.push({c,v:cell?nrm(String(cell.v||'')):'',raw:cell?String(cell.v||''):''});
+    }
+    const joined=rowVals.map(x=>x.v).join('|');
+
+    const hasDinleme=/dinleme/.test(joined);
+    const hasKonusma=/konu[sş]ma/.test(joined);
+    const hasOkuma=/\bokuma\b/.test(joined);
+    const hasYazma=/\byazma\b/.test(joined);
+
+    if(hasDinleme&&hasKonusma&&hasOkuma&&hasYazma){
+      // Veri satırı mı header satırı mı? Header hücreleri kısadır (<60 karakter)
+      // Uzun kazanım metni içeren satırları atla
+      const nonEmpty=rowVals.filter(x=>x.v.length>0);
+      const allShort=nonEmpty.length>0&&nonEmpty.every(x=>x.v.length<60);
+      if(!allShort) continue; // Kazanım içeren veri satırı, header değil
+
+      // Alt başlık satırı bulundu: r
+      // Üstündeki satırlarda HAFTA içeren satırı bul
+      let headerRow1=r;
+      outer:for(let rr=r-1;rr>=Math.max(range.s.r,r-4);rr--){
+        for(let c=range.s.c;c<=Math.min(range.e.c,25);c++){
+          const cell=sheet[XLSX.utils.encode_cell({r:rr,c})];
+          if(cell&&/hafta/i.test(String(cell.v||''))){headerRow1=rr;break outer;}
+        }
+      }
+
+      // Sütun haritası oluştur
+      const colMap={ay:-1,hafta:-1,ders_saati:-1,unite:-1,konu:-1,metin:-1,icerik_cercevesi:-1,
+                    dinleme:-1,konusma:-1,okuma:-1,yazma:-1};
+
+      // Üst başlık satırından
+      for(let c=range.s.c;c<=Math.min(range.e.c,30);c++){
+        const cell=sheet[XLSX.utils.encode_cell({r:headerRow1,c})];
+        if(!cell||!cell.v) continue;
+        const v=nrm(String(cell.v));
+        if(/^ay$/.test(v))                                                 colMap.ay=c;
+        else if(/hafta/.test(v)&&!/belirli/.test(v)&&colMap.hafta===-1)    colMap.hafta=c;
+        else if(/ders.?saat/.test(v))                                     colMap.ders_saati=c;
+        else if(/[öo][ğg]renme.*([üu]nite|tema)|[üu]nite.?tema|unite.?tema/.test(v)) colMap.unite=c;
+        else if(/^([üu]nite|unite|tema)$/.test(v)&&colMap.unite===-1)    colMap.unite=c;
+        else if(/konu.?metin|metin.?konu/.test(v))                        colMap.konu=c;
+        else if(/^konu$/.test(v)&&colMap.konu===-1)                       colMap.konu=c;
+        else if(/i[çc]erik.*[çc]er[çc]eve|icerik.*cerceve/.test(v))      colMap.icerik_cercevesi=c;
+        else if(/^metin$/.test(v)||(/\bmetin\b/.test(v)&&!/konu/.test(v)&&!/[çc]er[çc]eve/.test(v))) colMap.metin=c;
+      }
+
+      // Alt başlık satırından
+      for(const{c,v} of rowVals){
+        if(!v) continue;
+        if(/dinleme/.test(v)&&colMap.dinleme===-1)  colMap.dinleme=c;
+        else if(/konu[sş]ma/.test(v))               colMap.konusma=c;
+        else if(/\bokuma\b/.test(v))                colMap.okuma=c;
+        else if(/\byazma\b/.test(v))                colMap.yazma=c;
+      }
+
+      // En az hafta + 2 beceri sütunu bulunduysa geçerli say
+      if(colMap.hafta>=0 && [colMap.dinleme,colMap.konusma,colMap.okuma,colMap.yazma].filter(x=>x>=0).length>=2)
+        return{headerRow1,subHeaderRow:r,dataStart:r+1,colMap};
+    }
+  }
+  return null;
+}
+
+// ── ORTAOKUL TÜRKÇE İŞLEME ──
+function processSheetOrtaokulTurkce(sheet,detected){
+  const{dataStart,colMap}=detected;
+  const merges=sheet['!merges']||[];
+  const range=XLSX.utils.decode_range(sheet['!ref']);
+  const cML=s=>String(s||'').replace(/\r\n/g,'\n').replace(/\r/g,'\n').trim();
+  const cSL=s=>String(s||'').replace(/[\r\n]+/g,' ').replace(/\s+/g,' ').trim();
+
+  function getCellVal(r,c){
+    if(c<0) return '';
+    const cell=sheet[XLSX.utils.encode_cell({r,c})];
+    if(cell&&cell.v!=null&&String(cell.v).trim()) return String(cell.v).trim();
+    for(const m of merges){
+      if(m.s.c===c&&r>=m.s.r&&r<=m.e.r){
+        for(let mr=m.s.r;mr<=m.e.r;mr++){
+          const mc=sheet[XLSX.utils.encode_cell({r:mr,c})];
+          if(mc&&mc.v!=null&&String(mc.v).trim()) return String(mc.v).trim();
+        }
+      }
+    }
+    return '';
+  }
+
+  const OZEL_DESEN=/dönem\s*ara\s*tatili?|yarıyıl\s*tatili?|bayram\s*tatili?|\bara\s*tatil\b/;
+  const last={hafta:'',unite:'',konu:'',ders_saati:'',metin:'',icerik_cercevesi:''};
+  const result=[];
+  const emittedTatil=new Set();
+
+  for(let r=dataStart;r<=range.e.r;r++){
+    // Tatil satırı kontrolü
+    let tatilMetin='';
+    for(let c=range.s.c;c<=range.e.c;c++){
+      const txt=getCellVal(r,c);
+      if(txt.length>8&&txt.length<250&&OZEL_DESEN.test(txt.toLocaleLowerCase('tr'))){tatilMetin=txt;break;}
+    }
+    if(tatilMetin){
+      if(!emittedTatil.has(tatilMetin)){emittedTatil.add(tatilMetin);result.push({hafta:tatilMetin,tip:'ozel'});}
+      continue;
+    }
+
+    const hafta          =cML(getCellVal(r,colMap.hafta));
+    const unite          =cSL(getCellVal(r,colMap.unite));
+    const konu           =cSL(getCellVal(r,colMap.konu));
+    const ders_saati     =cSL(getCellVal(r,colMap.ders_saati));
+    const metin          =cSL(getCellVal(r,colMap.metin));
+    const icerik_cercevesi=cSL(getCellVal(r,colMap.icerik_cercevesi));
+    const dinleme        =cML(getCellVal(r,colMap.dinleme));
+    const konusma        =cML(getCellVal(r,colMap.konusma));
+    const okuma          =cML(getCellVal(r,colMap.okuma));
+    const yazma          =cML(getCellVal(r,colMap.yazma));
+
+    if(hafta&&hafta.length<=300) last.hafta=hafta;
+    if(unite)            last.unite=unite;
+    if(konu)             last.konu=konu;
+    if(ders_saati)       last.ders_saati=ders_saati;
+    if(metin)            last.metin=metin;
+    if(icerik_cercevesi) last.icerik_cercevesi=icerik_cercevesi;
+
+    if(!last.hafta) continue;
+    // En az bir beceri alanı dolu olmalı
+    if(!dinleme&&!konusma&&!okuma&&!yazma&&!last.konu&&!last.metin&&!last.icerik_cercevesi) continue;
+
+    const item={hafta:last.hafta};
+    if(last.unite)           item.unite=last.unite;
+    // metin: 5-6'da ayrı METİN sütunu, 7-8/ilkokul'da KONU/METİN birleşik → her ikisi de metin alanına
+    if(last.metin||last.konu) item.metin=last.metin||last.konu;
+    // konu_icerik_cercevesi: sadece 5-6'da var (İÇERİK ÇERÇEVESİ sütunu)
+    if(last.icerik_cercevesi) item.konu_icerik_cercevesi=last.icerik_cercevesi;
+    if(dinleme)              item.dinleme=dinleme;
+    if(konusma)              item.konusma=konusma;
+    if(okuma)                item.okuma=okuma;
+    if(yazma)                item.yazma=yazma;
+    result.push(item);
+  }
+
+  return groupOrtaokulByWeek(result.flatMap(splitMergedHafta));
+}
+
+// ── ORTAOKUL HAFTA BİRLEŞTİRME ──
+// Aynı haftaya ait satırları birleştirir; farklı değerleri \n ile ekler
+function groupOrtaokulByWeek(items){
+  if(!items||!items.length) return items;
+  const result=[];
+  const weekMap=new Map();
+  for(const item of items){
+    if(item.tip==='ozel'){result.push(item);continue;}
+    const hafta=item.hafta||'';
+    if(!hafta) continue;
+    let entry;
+    if(weekMap.has(hafta)){
+      entry=result[weekMap.get(hafta)];
+    }else{
+      entry={hafta};
+      weekMap.set(hafta,result.length);
+      result.push(entry);
+    }
+    for(const[k,v] of Object.entries(item)){
+      if(k==='hafta') continue;
+      if(!entry[k]) entry[k]=v;
+      else if(v&&entry[k]!==v&&!entry[k].includes(v)) entry[k]=entry[k]+'\n'+v;
+    }
+  }
+  return result;
+}
+
+// ── İNGİLİZCE HAFTA BİRLEŞTİRME ──
+// Aynı hafta birden fazla satıra yayıldığında (her beceri ayrı satır) birleştirir.
+// Carry-forward'dan gelen tam kopyaları atar, gerçekten farklı içerikleri \n\n ile ekler.
+function groupByWeekEN(items){
+  if(!items||!items.length) return items;
+  const result=[];
+  const weekMap=new Map();
+  for(const item of items){
+    if(item.tip==='ozel'){result.push(item);continue;}
+    const hafta=item.hafta||'';
+    if(!hafta) continue;
+    if(!weekMap.has(hafta)){
+      weekMap.set(hafta,result.length);
+      result.push(Object.assign({},item));
+      continue;
+    }
+    const entry=result[weekMap.get(hafta)];
+    if(!entry.unite&&item.unite) entry.unite=item.unite;
+    for(const f of ['konu_icerik_cercevesi','ogrenme_ciktilari','surec_bilesenleri']){
+      if(!item[f]) continue;
+      if(!entry[f]) entry[f]=item[f];
+      else if(item[f]!==entry[f]&&!entry[f].includes(item[f]))
+        entry[f]+='\n\n'+item[f];
+    }
+  }
+  return result;
+}
+
+function processSheet(sheet,sheetName){
+  const fmt=detectFormat(sheet);
+  if(fmt==='en'){
+    const raw=processSheetEN(sheet);
+    return{result:raw?groupByWeekEN(raw):raw,fmt:'en'};
+  }
+
+  // Ortaokul Türkçe: DİNLEME/KONUŞMA/OKUMA/YAZMA aynı başlık satırında mı?
+  const otDetect=detectOrtaokulTurkce(sheet);
+  if(otDetect) return{result:processSheetOrtaokulTurkce(sheet,otDetect),fmt:'tr'};
+
+  const raw=processSheetTR(sheet);
+  return{result:raw?groupByWeek(raw):raw,fmt:'tr'};
+}
+
+// ── PARALLEL BUILD ──
+async function buildFirebase(){
+  const out={'yillik-planlar':{},'plan-index':{}};
+  let totalDers=0,totalKayit=0,hataSayisi=0,done=0;
+  setPhase(1);log(S.files.length+' dosya paralel okunuyor...','info');
+
+  const reads=await Promise.all(S.files.map(async(entry,i)=>{
+    entry.status='running';setBadge(i,'running','…');
+    try{
+      const buf=await entry.file.arrayBuffer();
+      const wb=XLSX.read(buf,{type:'array'});
+      done++;setProgress(Math.round(done/S.files.length*50),'Okundu: '+entry.file.name);
+      return{entry,i,wb,ok:true};
+    }catch(err){
+      done++;entry.status='err';setBadge(i,'err','✗');
+      log('❌ Okunamadı: '+entry.file.name+' — '+err.message,'error');
+      hataSayisi++;return{entry,i,ok:false};
+    }
+  }));
+
+  setPhase(2);log('Dönüştürme başlıyor...','info');done=0;
+
+  for(const r of reads){
+    if(!r.ok){done++;continue;}
+    const{entry,i,wb}=r;
+    const names=wb.SheetNames;
+
+    // Sınıf key'i: sinifMap öncelikli, yoksa planAnaliz ile tespit
+    let fbSinif = S.sinifMap[entry.sinif];
+    if(!fbSinif || fbSinif==='?'){
+      fbSinif = guessSinifFromSheets(names, entry.file.name);
+      entry.sinif = fbSinif;
+    }
+    // Hala bulunamadıysa → '?' yerine null bırak, sheet bazında çözülecek
+    if(!fbSinif||fbSinif==='?') fbSinif = null;
+
+    const initSinif = fbSinif || '?';
+    if(!out['yillik-planlar'][initSinif])out['yillik-planlar'][initSinif]={};
+    if(!out['plan-index'][initSinif])    out['plan-index'][initSinif]={};
+    let anyOk=false;
+
+    if(names.length===1){
+      const sheet = wb.Sheets[names[0]];
+      const{result,fmt}=processSheet(sheet,names[0]);
+      entry.fmt=fmt;
+      if(result&&result.length){
+        const title = readSheetTitle(sheet);
+        const fileClean2 = entry.file.name.replace(/\.xlsx$/i,"");
+        const a2 = planAnaliz(fileClean2, names[0], title);
+        const rs = a2.sinif || fbSinif || '?';
+        if(rs !== fbSinif){
+          fbSinif=rs; entry.sinif=rs;
+          if(!out["yillik-planlar"][rs])out["yillik-planlar"][rs]={};
+          if(!out["plan-index"][rs])out["plan-index"][rs]={};
+        }
+        const baseDk2 = a2.dersKey || guessDersKey(entry.file.name,names[0],1);
+        const dk = planKey(baseDk2, a2.okul, a2.saat);
+        const baseAd2 = a2.dersAd || getDersAd(baseDk2, names[0]);
+        const ad = planAd(baseAd2, a2.okul, a2.saat);
+        out["yillik-planlar"][fbSinif][dk]={ad,plan:result};
+        out["plan-index"][fbSinif][dk]=ad;
+        totalDers++;totalKayit+=result.length;
+        log('✅ ['+(fmt==='en'?'EN':'TR')+'] ['+fbSinif+']["+dk+"] "'+ad+'" — '+result.length+' kayıt',fmt==='en'?'eng':'success');
+        anyOk=true;
+      }else{log("⚠️ "+entry.file.name+" — veri yok","warn");}
+    }else{
+      names.forEach(sn=>{
+        const sheet = wb.Sheets[sn];
+        const{result,fmt}=processSheet(sheet,sn);
+        if(!result||!result.length)return;
+        const title = readSheetTitle(sheet);
+        const fileClean = entry.file.name.replace(/\.xlsx$/i,"");
+        const a = planAnaliz(fileClean, sn, title);
+        const ss = a.sinif || fbSinif || '?';
+        if(!out["yillik-planlar"][ss])out["yillik-planlar"][ss]={};
+        if(!out["plan-index"][ss])out["plan-index"][ss]={};
+        // Ders key: planAnaliz'den geldiyse kullan, yoksa guessDersKey
+        // Ama saat bilgisi her zaman planAnaliz'den alınmalı
+        const baseDk  = a.dersKey || (()=>{ const gdk=guessDersKey(entry.file.name,sn,names.length); return gdk; })();
+        const dk = planKey(baseDk, a.okul, a.saat);
+        const baseAd  = a.dersAd || getDersAd(baseDk, sn);
+        const ad = planAd(baseAd, a.okul, a.saat);
+        out["yillik-planlar"][ss][dk]={ad,plan:result};
+        out["plan-index"][ss][dk]=ad;
+        totalDers++;totalKayit+=result.length; entry.fmt=fmt;
+        log('✅ ['+(fmt==='en'?'EN':'TR')+'] ['+ss+']["'+dk+'"] "'+ad+'" — '+result.length+' kayıt',fmt==='en'?'eng':'success');
+        anyOk=true;
+      });
+    }
+    entry.status=anyOk?'ok':'err';setBadge(i,anyOk?'ok':'err',anyOk?'✓':'✗');
+    if(!anyOk)hataSayisi++;
+    done++;setProgress(50+Math.round(done/reads.length*30),'Dönüştürüldü: '+entry.file.name);
+    renderFiles();
+    await new Promise(res=>setTimeout(res,0));
+  }
+
+  // Yarıyıl tatili otomatik ekle: EN formatta Jan 12-16 → Feb haftası arasındaki boşluğu doldur
+  for(const sinif of Object.keys(out['yillik-planlar'])){
+    for(const dersKey of Object.keys(out['yillik-planlar'][sinif])){
+      const plan = out['yillik-planlar'][sinif][dersKey].plan;
+      if(!plan||typeof plan!=='object') continue;
+      const keys = Object.keys(plan).map(Number).sort((a,b)=>a-b);
+      let insertAfter = -1;
+      for(let ki=0; ki<keys.length-1; ki++){
+        const curHafta = String(plan[String(keys[ki])].hafta||'');
+        const nxtHafta = String(plan[String(keys[ki+1])].hafta||'');
+        if(/january\s+12/i.test(curHafta) && /february/i.test(nxtHafta)){
+          insertAfter = keys[ki]; break;
+        }
+      }
+      if(insertAfter < 0) continue;
+      const newPlan = {};
+      for(const k of keys){
+        if(k <= insertAfter) newPlan[String(k)] = plan[String(k)];
+        else newPlan[String(k+1)] = plan[String(k)];
+      }
+      newPlan[String(insertAfter+1)] = {hafta:'YARIYIL TATİLİ: 19 Ocak - 30 Ocak', tip:'ozel'};
+      out['yillik-planlar'][sinif][dersKey].plan = newPlan;
+      totalKayit++;
+      log('📅 ['+sinif+'] Yarıyıl tatili otomatik eklendi (hafta '+(insertAfter+1)+')','info');
+    }
+  }
+
+  setPhase(3);setProgress(85,'Birleştiriliyor...');
+  const sinifSayisi=Object.keys(out['yillik-planlar']).length;
+  log('✔ '+sinifSayisi+' sınıf | '+totalDers+' ders | '+totalKayit+' kayıt','section');
+  document.getElementById('sDers').textContent=totalDers;
+  document.getElementById('sKayit').textContent=totalKayit;
+  document.getElementById('sSinif').textContent=sinifSayisi;
+  document.getElementById('sHata').textContent=hataSayisi;
+  return out;
+}
+
+// ── RUN ──
+async function run(){
+  const btn=document.getElementById('runBtn');
+  btn.disabled=true;btn.textContent='⏳ İşleniyor...';
+  document.getElementById('log').innerHTML='';
+  document.getElementById('progWrap').classList.add('on');
+  document.getElementById('phases').classList.add('on');
+  document.getElementById('hdrBadge').textContent='Çalışıyor...';
+  logSec('Başlatıldı');
+  S.result=await buildFirebase();
+  if(S.fbOk&&S.fbDb){
+    setPhase(4);setProgress(90,'Firebase yazılıyor...');logSec('Firebase Yükleme');
+    try{
+      const path=document.getElementById('fbPath').value.trim()||'yillik-planlar';
+      await S.fbDb.ref(path).set(S.result['yillik-planlar']);
+      log('✅ "'+path+'" yazıldı','success');
+      await S.fbDb.ref('plan-index').set(S.result['plan-index']);
+      log('✅ "plan-index" yazıldı','success');
+      setProgress(100,'Firebase yüklendi!');log('🎉 Tamamlandı!','success');phDone(4);
+    }catch(err){log('❌ Firebase: '+err.message,'error');}
+  }else{
+    setProgress(100,'Dönüştürme tamamlandı');
+    log('ℹ️ Firebase bağlı değil — JSON İndir butonunu kullan','warn');phDone(3);
+  }
+  logSec('Bitti');
+  document.getElementById('hdrBadge').textContent='Tamamlandı ✓';
+  btn.disabled=false;btn.textContent='▶  Dönüştür & Firebase\'e Yükle';
+  document.getElementById('dlBtn').disabled=false;
+}
+
+// ── DOWNLOAD ──
+async function dlJSON(){
+  if(!S.result){
+    const btn=document.getElementById('dlBtn');
+    btn.disabled=true;btn.textContent='⏳ Oluşturuluyor...';
+    document.getElementById('log').innerHTML='';
+    document.getElementById('progWrap').classList.add('on');
+    document.getElementById('phases').classList.add('on');
+    S.result=await buildFirebase();
+    btn.disabled=false;btn.textContent='⬇  Sadece JSON İndir';
+  }
+  const blob=new Blob([JSON.stringify(S.result,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;
+  a.download='firebase_planlar_'+new Date().toISOString().slice(0,10)+'.json';
+  a.click();URL.revokeObjectURL(url);
+  log('📥 JSON indirildi','success');
+}
+
+// ── UI ──
+function setProgress(pct,lbl){
+  document.getElementById('progFill').style.width=pct+'%';
+  document.getElementById('progPct').textContent=pct+'%';
+  document.getElementById('progLbl').textContent=lbl;
+}
+function setBadge(i,cls,txt){const el=document.getElementById('b'+i);if(el){el.className='fbadge '+cls;el.textContent=txt;}}
+function setPhase(n){[1,2,3,4].forEach(x=>{const el=document.getElementById('ph'+x);if(el)el.className='phase-item'+(x<n?' done':x===n?' active':'');});}
+function phDone(n){const el=document.getElementById('ph'+n);if(el)el.className='phase-item done';}
+</script>
+</body>
+</html>

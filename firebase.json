@@ -1,0 +1,44 @@
+{
+  "database": {
+    "rules": "database.rules.json"
+  },
+  "hosting": {
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      ".git/**",
+      ".firebase/**",
+      ".claude/**",
+      ".vscode/**",
+      "**/.git/**",
+      "**/.firebase/**",
+      "**/.claude/**",
+      "**/.vscode/**",
+      "**/node_modules/**",
+      "android-apk/**",
+      "**/*.apk",
+      "firebase_planlar_*.json"
+    ],
+    "headers": [
+      {
+        "source": "**/*.@(js|mjs)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-store"
+          }
+        ]
+      },
+      {
+        "source": "**/*.@(html|css)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      }
+    ]
+  }
+}

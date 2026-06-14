@@ -1,0 +1,135 @@
+html {
+  background-color: #050912;
+  background-color: var(--color-bg, #050912);
+}
+
+html[data-theme="light"] {
+  background-color: #f4f6f9;
+}
+
+body {
+  background-color: #050912;
+  background-color: var(--color-bg, #050912);
+}
+
+body[data-theme="light"],
+html[data-theme="light"] body {
+  background-color: #f4f6f9;
+}
+
+@font-face {
+  font-family: "Material Symbols Rounded";
+  src: url("../../font/material-symbols-rounded-latin-400-normal.woff2") format("woff2");
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
+}
+
+/* Chrome standalone PWA'da otomatik sayfa geçiş animasyonunu devre dışı bırak */
+@view-transition {
+  navigation: none;
+}
+
+::view-transition-group(*),
+::view-transition-image-pair(*),
+::view-transition-old(*),
+::view-transition-new(*) {
+  animation: none !important;
+  animation-duration: 0s !important;
+}
+
+*,
+*::before,
+*::after{
+  box-sizing: border-box;
+}
+
+html{
+  height: 100%;
+  overflow: hidden;
+  font-size: var(--base-font-size);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  scrollbar-gutter: stable;
+}
+html::-webkit-scrollbar{ display: none; }
+body::-webkit-scrollbar{ display: none; }
+
+/* Sadece app-shell.js yüklenen sayfalarda (welcome hariç) */
+html.app-shell-active body:not(.app-ready):not(.loaded){
+  visibility: hidden;
+}
+
+html.app-shell-active body.app-ready,
+html.app-shell-active body.loaded{
+  visibility: visible;
+}
+
+/* Sistem nav barı arkasında sayfa içeriği görünmesin */
+body::after{
+  content: '';
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-bottom);
+  background: var(--color-bg);
+  z-index: 990;
+  pointer-events: none;
+}
+
+body{
+  height: 100dvh;
+  margin: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: none;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+  scroll-padding-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom) + 28px);
+  padding-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom) + 42px);
+  font-family: var(--font-family-base);
+  color: var(--text-primary);
+  background:
+    radial-gradient(900px 520px at 50% -220px, rgba(var(--color-accent-rgb), .14), transparent 62%),
+    radial-gradient(1200px 900px at 50% 120%, rgba(120,160,255,.08), transparent 55%),
+    linear-gradient(180deg, var(--color-bg-app), var(--color-bg-surface));
+  background-repeat: no-repeat;
+}
+
+button,
+input,
+select,
+textarea{
+  font: inherit;
+  font-family: var(--font-family-base);
+}
+
+button{
+  cursor: pointer;
+}
+
+a{
+  color: inherit;
+}
+
+*{
+  -webkit-tap-highlight-color: transparent;
+  /* Metin seçimi ve Google Lens / uzun basma menüsünü engelle */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Input ve textarea'da yazmak ve kopyalamak için seçime izin ver */
+input,
+textarea,
+[contenteditable]{
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}

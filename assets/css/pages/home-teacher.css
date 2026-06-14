@@ -1,0 +1,36 @@
+/* home-teacher.css — Sadece öğretmen rolüne özgü stiller */
+
+.appInner{
+  max-width: 600px;
+  padding-top: 6px;
+}
+
+.tblNo{
+  padding-left: 12px;
+  color: var(--color-accent);
+}
+
+.tblClsPrefix{
+  color: var(--text-primary);
+  font-weight: 800;
+  font-size: var(--font-sm);
+  opacity: .75;
+  margin-right: 1px;
+}
+
+.tblCls{
+  font-weight: 800;
+  font-size: var(--font-sm);
+  letter-spacing: .02em;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  justify-self: start;
+  padding-left: 2px;
+  padding-right: 6px;
+}
+
+.tblLes{
+  padding-left: 5px;
+}

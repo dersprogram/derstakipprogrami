@@ -1,0 +1,33 @@
+/* home-student.css — Sadece öğrenci rolüne özgü stiller */
+
+.appInner{
+  max-width: 600px;
+  padding-top: 6px;
+}
+
+.studentInfo{
+  text-align: center;
+  font-weight: 600;
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  margin-top: -4px;
+  margin-bottom: 14px;
+  letter-spacing: .05em;
+}
+
+.tblNo{
+  padding-left: 14px;
+  color: var(--text-primary);
+}
+
+.tblClsPrefix{
+  display: none;
+}
+
+.tblCls{
+  display: none;
+}
+
+.tblLes{
+  padding-left: 8px;
+}
